@@ -49,12 +49,9 @@ check_TLB(void *va) {
 void
 print_TLB_missrate()
 {
-    double miss_rate = 0;	
-
+    double miss_rate = 0;
     /*Part 2 Code here to calculate and print the TLB miss rate*/
-
-
-
+    miss_rate = tlb_store.miss_count/tlb_store.mem_accesses;
 
     fprintf(stderr, "TLB miss rate %lf \n", miss_rate);
 }

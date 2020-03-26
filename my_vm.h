@@ -23,6 +23,8 @@ typedef unsigned long pte_t;
 // Represents a page directory entry
 typedef unsigned long pde_t;
 
+typedef unsigned char valid_bit;
+
 #define TLB_ENTRIES 512
 
 //Structure to represents TLB
@@ -31,10 +33,30 @@ struct tlb {
     * Think about the size of each TLB entry that performs virtual to physical
     * address translation.
     */
+    /*LOGIC:
+        contains 3 arrays with a 1:1:1 index correspondence: 
+        1. the entry number in the page directory
+        2. the physical mem address
+        3. a short in array for entry age (with each mem access we increment, when insert new set to 0)
+    */
+    int mem_accesses;
+    int miss_count;
+    int* page_dir_nums;
+    int* physical_addrs;
+    short int* age;
 
 };
 struct tlb tlb_store;
 
+pde_t* page_dir;
+
+int vpage_count;
+int ppage_count;
+int page_entries;
+
+
+char* vbitmap;
+char* pbitmap;
 
 void set_physical_mem();
 pte_t* translate(pde_t *pgdir, void *va);
