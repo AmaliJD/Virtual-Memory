@@ -70,6 +70,15 @@ pte_t *translate(pde_t *pgdir, void *va) {
     * Part 2 HINT: Check the TLB before performing the translation. If
     * translation exists, then you can return physical address from the TLB.
     */
+	
+	// Translation
+	/*
+		Go to pgdir. Offset by vpn to get pagetable address
+		Go to pagetable address. Offset by ppn to get page address
+		Go to page address. Offset by pageoff to get data address
+		
+		Go to data address -> retrieve value
+	*/
 
 
     //If translation not successfull
@@ -129,6 +138,15 @@ void *a_malloc(unsigned int num_bytes) {
    2. if not, see how many pages are needed
    3. return the physsical mem addr??? (check)
    */
+   
+   	//Converting Address to Virtual Address
+	// address/pagesize -> page number (ppn)
+	// address%pagesize -> page offset (off)
+	// pagesize/pte_size -> number of pte per table (#pte)
+	// pagenumber/#pte	-> virtual page number (vpn)
+	
+	//	Final Virtual Address!
+	//  vpn(memsize) + ppn(pagesize) + off
 
     return NULL;
 }
@@ -199,6 +217,3 @@ void mat_mult(void *mat1, void *mat2, int size, void *answer) {
 
        
 }
-
-
-
