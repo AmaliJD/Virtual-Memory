@@ -70,16 +70,8 @@ pte_t *translate(pde_t *pgdir, void *va) {
     * Part 2 HINT: Check the TLB before performing the translation. If
     * translation exists, then you can return physical address from the TLB.
     */
-	
-	// Translation
-	/*
-		Go to pgdir. Offset by vpn to get pagetable address
-		Go to pagetable address. Offset by ppn to get page address
-		Go to page address. Offset by pageoff to get data address
-		
-		Go to data address -> retrieve value
-	*/
-	
+
+
     //If translation not successfull
     return NULL; 
 }
@@ -108,6 +100,10 @@ page_map(pde_t *pgdir, void *va, void *pa)
 void *get_next_avail(int num_pages) {
  
     //Use virtual address bitmap to find the next free page
+
+    /*
+    logic: simply iterate thru the pagedir bitmap and find the first 0 and return starting address for that page???
+    */
 }
 
 
@@ -126,15 +122,13 @@ void *a_malloc(unsigned int num_bytes) {
     * free pages are available, set the bitmaps and map a new page. Note, you will 
     * have to mark which physical pages are used. 
     */
-	
-	//Converting Address to Virtual Address
-	// address/pagesize -> page number (ppn)
-	// address%pagesize -> page offset (off)
-	// pagesize/pte_size -> number of pte per table (#pte)
-	// pagenumber/#pte	-> virtual page number (vpn)
-	
-	//	Final Virtual Address!
-	//  vpn(memsize) + ppn(pagesize) + off
+
+   /*
+   logic:
+   1. if num_byes <= page size: call get next_avail_page and then malloc on the pagedir val 
+   2. if not, see how many pages are needed
+   3. return the physsical mem addr??? (check)
+   */
 
     return NULL;
 }
@@ -150,6 +144,12 @@ void a_free(void *va, int size) {
      * Part 2: Also, remove the translation from the TLB
      */
      
+    /*logic: 
+        1. get the translation for the physical page free that
+        2. get the page dir index and then free that
+        3. check if value is in TLB by using page dir index and free if necessary
+    */
+
     
 }
 
@@ -176,10 +176,8 @@ void get_value(void *va, void *val, int size) {
 
     /* HINT: put the values pointed to by "va" inside the physical memory at given
     * "val" address. Assume you can access "val" directly by derefencing them.
-    */
-
-
-
+    */   
+    //logic: simply get the physical addr, and set va to be the dereferenced value???
 
 }
 
@@ -201,3 +199,6 @@ void mat_mult(void *mat1, void *mat2, int size, void *answer) {
 
        
 }
+
+
+
