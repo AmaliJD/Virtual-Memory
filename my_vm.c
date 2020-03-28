@@ -143,12 +143,22 @@ void *a_malloc(unsigned int num_bytes) {
 	// address/pagesize -> page number (ppn)
 	// address%pagesize -> page offset (off)
 	// pagesize/pte_size -> number of pte per table (#pte)
-	// pagenumber/#pte	-> virtual page number (vpn)
+	// ppn/#pte	-> virtual page number (vpn)
 	
 	//	Final Virtual Address!
 	//  vpn(memsize) + ppn(pagesize) + off
-
-    return NULL;
+	
+	void* pointer = ***Address In Physical Mem***;
+	unsigned long address = (unsigned long)pointer;
+	
+	unsigned long ppn = address/PGSIZE;
+	unsigned long off = address/PGSIZE;
+	unsigned long vpn = ppn/page_entries;
+	
+	unsigned long vaddr = (vpn * MEMSIZE) + (ppn * PGSIZE) + off;
+	
+	void* vpointer = &vaddr;
+    return vpointer;
 }
 
 /* Responsible for releasing one or more memory pages using virtual address (va)
