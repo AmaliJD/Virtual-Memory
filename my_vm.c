@@ -8,7 +8,12 @@ void set_physical_mem() {
     //Allocate physical memory using mmap or malloc; this is the total size of
     //your memory you are simulating
 
-    
+    //not sure what type to set physical mem to so i have it is
+    physical_mem = malloc(MEMSIZE);
+    page_dir = malloc(page_count);
+    vbitmap = (valid_bit*) malloc(page_count);
+    pbitmap = (valid_bit*) malloc(page_count);
+
     //HINT: Also calculate the number of physical and virtual pages and allocate
     //virtual and physical bitmaps and initialize them
 
@@ -38,6 +43,7 @@ pte_t *
 check_TLB(void *va) {
 
     /* Part 2: TLB lookup code here */
+
 
 }
 
@@ -100,19 +106,45 @@ page_map(pde_t *pgdir, void *va, void *pa)
     and page table (2nd-level) indices. If no mapping exists, set the
     virtual to physical mapping */
 
+    /*
+    rough logic:
+    1. translate the addr
+    2. check if respective entry is taken via bitmap
+    */
+
     return -1;
 }
 
 
-/*Function that gets the next available page
-*/
+/*Function that gets the next available page and returns respective index*/
 void *get_next_avail(int num_pages) {
- 
-    //Use virtual address bitmap to find the next free page
 
+    //Use virtual address bitmap to find the next free page
     /*
     logic: simply iterate thru the pagedir bitmap and find the first 0 and return starting address for that page???
     */
+    int ppage_val = -1;
+    int vpage_val = -1;
+
+    int i = 0;
+    for (i = 0; i < num_pages; i++){
+        if (vpage_val == -1 && vbitmap[i] == 0){
+            vpage_val = i;
+        }
+        if (ppage_val == -1 && pbitmap[i] == 0){
+            ppage_val = i;
+        }
+    }
+
+    if (ppage_val == -1 || vpage_val == -1){
+        return NULL;
+    }
+    else{
+        int* arr = malloc(2*sizeof(int));
+        arr[0] = vpage_val;
+        arr[1] = ppage_val;
+        return (void *) arr;
+    }
 }
 
 
@@ -147,6 +179,18 @@ void *a_malloc(unsigned int num_bytes) {
 	
 	//	Final Virtual Address!
 	//  vpn(memsize) + ppn(pagesize) + off
+
+    if (physical_mem == NULL){
+        set_physical_mem();
+    }
+
+    //next[0] = vpage number, next[1] = physical page number
+    int* next = get_next_avail(page_count);
+    if (next == NULL){
+        return NULL;
+    }
+
+
 	
 	void* pointer = ***Address In Physical Mem***;
 	unsigned long address = (unsigned long)pointer;

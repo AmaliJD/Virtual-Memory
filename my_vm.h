@@ -3,6 +3,7 @@
 #include <stdbool.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <math.h>
 
 //Assume the address space is 32 bits, so the max memory size is 4GB
 //Page size is 4KB
@@ -50,13 +51,16 @@ struct tlb tlb_store;
 
 pde_t* page_dir;
 
+unsigned char* physical_mem = NULL;
+
 int vpage_count;
 int ppage_count;
 int page_entries;
+int page_count = (int) MEMSIZE/PGSIZE;
 
 
-char* vbitmap;
-char* pbitmap;
+valid_bit* vbitmap;
+valid_bit* pbitmap;
 
 void set_physical_mem();
 pte_t* translate(pde_t *pgdir, void *va);
