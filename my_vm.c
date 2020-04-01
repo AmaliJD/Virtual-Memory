@@ -62,8 +62,6 @@ print_TLB_missrate()
     fprintf(stderr, "TLB miss rate %lf \n", miss_rate);
 }
 
-
-
 /*
 The function takes a virtual address and page directories starting address and
 performs translation to return the physical address
@@ -190,7 +188,8 @@ void *a_malloc(unsigned int num_bytes) {
         return NULL;
     }
 
-
+    //need to figure out how many entries in a page
+    page_dir[next[0]] =(pde_t*) malloc(PGSIZE);
 	
 	void* pointer = ***Address In Physical Mem***;
 	unsigned long address = (unsigned long)pointer;
@@ -237,7 +236,11 @@ void put_value(void *va, void *val, int size) {
      * function.
      */
 
-
+    //INSERT TRANSLATE CALL - assuming it just returns the addr for the start of phys page in physical_mem
+    pde_t* paddr = translate(page_dir, va);
+    
+    int index = (*paddr)*(PGSIZE-1);
+    memcpy(paddr, val, size);
 
 
 }

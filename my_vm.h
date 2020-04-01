@@ -63,6 +63,7 @@ valid_bit* vbitmap;
 valid_bit* pbitmap;
 
 void set_physical_mem();
+int get_ppn(void*);
 pte_t* translate(pde_t *pgdir, void *va);
 int page_map(pde_t *pgdir, void *va, void* pa);
 bool check_in_tlb(void *va);
