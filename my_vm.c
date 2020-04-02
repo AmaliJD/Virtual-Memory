@@ -9,8 +9,8 @@ void set_physical_mem() {
     //your memory you are simulating
 
     //not sure what type to set physical mem to so i have it is
-    physical_mem = malloc(MEMSIZE);
-    page_dir = malloc(page_count);
+    physical_mem = (unsigned char*) malloc(MEMSIZE);
+    page_dir = (pde_t*) malloc(page_count);
     vbitmap = (valid_bit*) malloc(page_count);
     pbitmap = (valid_bit*) malloc(page_count);
 
@@ -253,7 +253,15 @@ void get_value(void *va, void *val, int size) {
     * "val" address. Assume you can access "val" directly by derefencing them.
     */   
     //logic: simply get the physical addr, and set va to be the dereferenced value???
-
+    pde_t* paddr = translate(page_dir, va);
+    int index = (*paddr)*(PGSIZE-1);
+    int i;
+    unsigned char* temp = (char*) malloc(size);
+    //not sure if this is right but i'm just setting val[i] = phys_mem[i]
+    for(i = index; i < index+PGSIZE; i++){
+        temp[i] = physical_mem[i];
+    }
+    memcpy(temp, val, temp);
 }
 
 
