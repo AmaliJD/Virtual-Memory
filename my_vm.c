@@ -93,9 +93,9 @@ pte_t* translate(pde_t* pgdir, void* va) {
     */
 
     unsigned int vaddr = (unsigned int)va;
-    unsigned int vpn = get_top_bits(vaddr, vpnSize);
-    unsigned int ppn = get_mid_bits(vaddr, ppnSize);
-    unsigned int off = get_end_bits(vaddr, vpnSize);
+    unsigned int vpn = get_top_bits(vaddr, front_bits);
+    unsigned int ppn = get_mid_bits(vaddr, mid_bits);
+    unsigned int off = get_end_bits(vaddr, off_bits);
 
     void* outer = pgdir[vpn];
     void* inner = outer[ppn];
@@ -277,15 +277,6 @@ void* a_malloc(unsigned int num_bytes) {
       2. if not, see how many pages are needed
       3. return the physsical mem addr??? (check)
       */
-
-      //Converting Address to Virtual Address
-      // address/pagesize -> page number (ppn)
-      // address%pagesize -> page offset (off)
-      // pagesize/pte_size -> number of pte per table (#pte)
-      // ppn/#pte	-> virtual page number (vpn)
-
-      //	Final Virtual Address!
-      //  vpn(memsize) + ppn(pagesize) + off
 
     if (physical_mem == NULL) {
         set_physical_mem();
