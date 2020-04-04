@@ -1,5 +1,5 @@
 #include "my_vm.h"
-
+int off_bits = 0, mid_bits = 0, front_bits = 0;
 /*
 Function responsible for allocating and setting your physical memory
 */
@@ -8,14 +8,20 @@ void set_physical_mem() {
     //Allocate physical memory using mmap or malloc; this is the total size of
     //your memory you are simulating
 
+    int num_pages = MEMSIZE / PGSIZE;
+    int num_entries_per_page = PGSIZE / sizeof(pte_t);
+    off_bits = log10(PGSIZE) / log10(2);
+    mid_bits = (32 - off_bits) / 2;
+    front_bits = front_bits;
+
+    ppage_count = 1 << mid_bits;
+    vpage_count = 1 << front_bits;
+
     //not sure what type to set physical mem to so i have it is
     physical_mem = (unsigned char*)malloc(MEMSIZE);
     page_dir = (pde_t*)malloc(page_count);
     vbitmap = (valid_bit*)malloc(page_count);
-    pbitmap = (valid_bit*)malloc(page_count);
-
-    int numPP = ;
-    int numVP = ;
+    pbitmap = (valid_bit*)malloc(vpage_count);
     //HINT: Also calculate the number of physical and virtual pages and allocate
     //virtual and physical bitmaps and initialize them
 
@@ -91,10 +97,13 @@ pte_t* translate(pde_t* pgdir, void* va) {
     unsigned int ppn = get_mid_bits(vaddr, ppnSize);
     unsigned int off = get_end_bits(vaddr, vpnSize);
 
-    void* paddr = pgdir[vpn]...//
+    void* outer = pgdir[vpn];
+    void* inner = outer[ppn];
+    void* paddr = &inner[off];
+    return paddr;
 
     //If translation not successfull
-    return NULL;
+    //return NULL;
 }
 
 
@@ -295,7 +304,7 @@ void* a_malloc(unsigned int num_bytes) {
     unsigned int ppn = next[1]; // index of innerpage
     //unsigned int off = num_bytes;
     unsigned int off = 0; // assuming new page per a_malloc
-    unsigned int vaddr = (vpn * (1<<32)) + (ppn * *(1 << (32 - vpnSize))) + off;
+    unsigned int vaddr = (vpn * (1<<32)) + (ppn *(1 << (32 - front_bits))) + off;
 
     void* vpointer = vaddr;
     return vpointer;
