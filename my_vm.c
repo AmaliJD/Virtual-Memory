@@ -1,4 +1,5 @@
 #include "my_vm.h"
+#include <math.h>
 int off_bits = 0, mid_bits = 0, front_bits = 0;
 /*
 Function responsible for allocating and setting your physical memory
@@ -10,7 +11,8 @@ void set_physical_mem() {
 
     int num_pages = MEMSIZE / PGSIZE;
     int num_entries_per_page = PGSIZE / sizeof(pte_t);
-    off_bits = log10(PGSIZE) / log10(2);
+    double ob = log10(PGSIZE) / log10(2);
+    off_bits = ceil(ob);
     mid_bits = (32 - off_bits) / 2;
     front_bits = front_bits;
 
