@@ -93,15 +93,22 @@ pte_t* translate(pde_t* pgdir, void* va) {
 
         Go to data address -> retrieve value
     */
+	
+	// check TLB first
+	//checkTLB(va);
 
     unsigned int vaddr = (unsigned int)va;
     unsigned int vpn = get_top_bits(vaddr, front_bits);
     unsigned int ppn = get_mid_bits(vaddr, mid_bits);
     unsigned int off = get_end_bits(vaddr, off_bits);
 
-    void* outer = pgdir[vpn];
-    void* inner = outer[ppn];
-    void* paddr = &inner[off];
+    pte_t* outer = pgdir[vpn];
+    pte_t* inner = outer[ppn];
+    pte_t* paddr = &inner[off];
+	
+	// add to TLB
+	//add_TLB(va, (void*)paddr);
+	
     return paddr;
 
     //If translation not successfull
