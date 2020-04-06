@@ -40,11 +40,11 @@ struct tlb {
         2. the physical mem address
         3. a short in array for entry age (with each mem access we increment, when insert new set to 0)
     */
-    int mem_accesses;
+	int mem_accesses;
     int miss_count;
-    int* page_dir_nums;
-    int* physical_addrs;
-    short int* age;
+    int page_dir_nums[TLB_ENTRIES];
+    int physical_addrs[TLB_ENTRIES];
+    short int age[TLB_ENTRIES];
 
 };
 struct tlb tlb_store;
