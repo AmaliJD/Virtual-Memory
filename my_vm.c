@@ -78,7 +78,7 @@ check_TLB(void* va) {
  		i++;
  		if(i >= TLB_ENTRIES)
  		{
- 			reutrn NULL;
+ 			return NULL;
  		}
  	}
 	
