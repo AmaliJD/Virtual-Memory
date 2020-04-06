@@ -1,5 +1,5 @@
 #include "my_vm.h"
-#include <math.h>
+
 int off_bits = 0, mid_bits = 0, front_bits = 0;
 /*
 Function responsible for allocating and setting your physical memory
@@ -26,7 +26,8 @@ void set_physical_mem() {
     pbitmap = (valid_bit*)malloc(vpage_count);
     //HINT: Also calculate the number of physical and virtual pages and allocate
     //virtual and physical bitmaps and initialize them
-
+	
+	tlb_store->miss_count = 0;
 }
 
 
@@ -39,8 +40,22 @@ add_TLB(void* va, void* pa)
 {
 
     /*Part 2 HINT: Add a virtual to physical page translation to the TLB */
+	tlb_store->miss_count += 1;
+	int i;
+	
+	while(page_dir_nums[i] != 0)
+	{
+		i++;
+		if(i >= TLB_ENTRIES){break;}
+	}
+	
+	unsigned int entry_value = get_top_bits((unsigned int)va, front_bits + mid_bits);
+	unsigned int pa_value = (unsigned int)pa;
+	
+	page_dir_nums[i] = entry_value;
+	physical_addrs[i] = pa_value;
 
-    return -1;
+    return 1;
 }
 
 
@@ -53,8 +68,22 @@ pte_t*
 check_TLB(void* va) {
 
     /* Part 2: TLB lookup code here */
-
-
+	unsigned int entry_value = get_top_bits((unsigned int)va, front_bits + mid_bits);
+	
+	int i;
+	
+	while(page_dir_nums[i] != entry_value)
+	{
+		i++;
+		if(i >= TLB_ENTRIES)
+		{
+			reutrn NULL;
+		}
+	}
+	
+	pte_t* pa_value = physical_addrs[i];
+	
+	reutrn pa_value;
 }
 
 
@@ -95,19 +124,21 @@ pte_t* translate(pde_t* pgdir, void* va) {
     */
 	
 	// check TLB first
-	//checkTLB(va);
-
-    unsigned int vaddr = (unsigned int)va;
-    unsigned int vpn = get_top_bits(vaddr, front_bits);
-    unsigned int ppn = get_mid_bits(vaddr, mid_bits);
-    unsigned int off = get_end_bits(vaddr, off_bits);
-
-    pte_t* outer = pgdir[vpn];
-    pte_t* inner = outer[ppn];
-    pte_t* paddr = &inner[off];
+	pte_t* paddr = checkTLB(va);
 	
-	// add to TLB
-	//add_TLB(va, (void*)paddr);
+	if(paddr == NULL)
+	{
+		unsigned int vaddr = (unsigned int)va;
+		unsigned int vpn = get_top_bits(vaddr, front_bits);
+		unsigned int ppn = get_mid_bits(vaddr, mid_bits);
+		unsigned int off = get_end_bits(vaddr, off_bits);
+
+		pte_t* outer = pgdir[vpn];
+		pte_t* inner = outer[ppn];
+		paddr = &inner[off];
+		
+		add_TLB(va, (void*)paddr)
+	}
 	
     return paddr;
 
