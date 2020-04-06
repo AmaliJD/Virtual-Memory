@@ -124,7 +124,7 @@ pte_t* translate(pde_t* pgdir, void* va) {
     */
 	
 	// check TLB first
-	pte_t* paddr = checkTLB(va);
+	pte_t* paddr = check_TLB(va);
 	
 	if(paddr == NULL)
 	{
