@@ -40,20 +40,21 @@ add_TLB(void* va, void* pa)
 {
 
     /*Part 2 HINT: Add a virtual to physical page translation to the TLB */
-	tlb_store->miss_count += 1;
-	int i;
 	
-	while(page_dir_nums[i] != 0)
-	{
-		i++;
-		if(i >= TLB_ENTRIES){break;}
-	}
+    // tlb_store->miss_count += 1;
+	// int i;
 	
-	unsigned int entry_value = get_top_bits((unsigned int)va, front_bits + mid_bits);
-	unsigned int pa_value = (unsigned int)pa;
+	// while(page_dir_nums[i] != 0)
+	// {
+	// 	i++;
+	// 	if(i >= TLB_ENTRIES){break;}
+	// }
 	
-	page_dir_nums[i] = entry_value;
-	physical_addrs[i] = pa_value;
+	// unsigned int entry_value = get_top_bits((unsigned int)va, front_bits + mid_bits);
+	// unsigned int pa_value = (unsigned int)pa;
+	
+	// page_dir_nums[i] = entry_value;
+	// physical_addrs[i] = pa_value;
 
     return 1;
 }
@@ -68,22 +69,24 @@ pte_t*
 check_TLB(void* va) {
 
     /* Part 2: TLB lookup code here */
-	unsigned int entry_value = get_top_bits((unsigned int)va, front_bits + mid_bits);
+// 	unsigned int entry_value = get_top_bits((unsigned int)va, front_bits + mid_bits);
 	
-	int i;
+// 	int i;
 	
-	while(page_dir_nums[i] != entry_value)
-	{
-		i++;
-		if(i >= TLB_ENTRIES)
-		{
-			reutrn NULL;
-		}
-	}
+// 	while(page_dir_nums[i] != entry_value)
+// 	{
+// 		i++;
+// 		if(i >= TLB_ENTRIES)
+// 		{
+// 			reutrn NULL;
+// 		}
+// 	}
 	
-	pte_t* pa_value = physical_addrs[i];
+// 	pte_t* pa_value = physical_addrs[i];
 	
-	reutrn pa_value;
+// 	return pa_value;
+// 
+    return 1;
 }
 
 
@@ -124,7 +127,7 @@ pte_t* translate(pde_t* pgdir, void* va) {
     */
 	
 	// check TLB first
-	pte_t* paddr = checkTLB(va);
+	pte_t* paddr; /* = checkTLB(va);*/
 	
 	if(paddr == NULL)
 	{
@@ -137,7 +140,7 @@ pte_t* translate(pde_t* pgdir, void* va) {
 		pte_t* inner = outer[ppn];
 		paddr = &inner[off];
 		
-		add_TLB(va, (void*)paddr)
+		add_TLB(va, (void*)paddr);
 	}
 	
     return paddr;
@@ -152,11 +155,11 @@ pte_t* translate(pde_t* pgdir, void* va) {
 // EXTRACT BITS HELPER --------------------------------------------------------------------------------------------------
 // Example 1 EXTRACTING TOP-BITS (Outer bits)
 
-static unsigned int get_top_bits(unsigned int value, int num_bits)
+unsigned int get_top_bits(unsigned int value, int num_bits)
 {
     //Assume you would require just the higher order (outer)  bits, 
     //that is first few bits from a number (e.g., virtual address) 
-    //So given an  unsigned int value, to extract just the higher order (outer)  “num_bits”
+    //So given an  unsigned int value, to extract just the higher order (outer)  ï¿½num_bitsï¿½
     int num_bits_to_prune = 32 - num_bits; //32 assuming we are using 32-bit address 
     return (value >> num_bits_to_prune);
 }
@@ -166,7 +169,7 @@ static unsigned int get_top_bits(unsigned int value, int num_bits)
 //Now to extract some bits from the middle from a 32 bit number, 
 //assuming you know the number of lower_bits (for example, offset bits in a virtual address)
 
-static unsigned int get_mid_bits(unsigned int value, int num_middle_bits, int num_lower_bits)
+unsigned int get_mid_bits(unsigned int value, int num_middle_bits, int num_lower_bits)
 {
 
     //value corresponding to middle order bits we will returning.
@@ -178,11 +181,11 @@ static unsigned int get_mid_bits(unsigned int value, int num_middle_bits, int nu
 
     // Next, you need to build a mask to prune the outer bits. How do we build a mask?   
 
-    // Step1: First, take a power of 2 for “num_middle_bits”  or simply,  a left shift of number 1.  
+    // Step1: First, take a power of 2 for ï¿½num_middle_bitsï¿½  or simply,  a left shift of number 1.  
     // You could try this in your calculator too.
     unsigned int outer_bits_mask = (1 << num_middle_bits);
 
-    // Step 2: Now subtract 1, which would set a total of  “num_middle_bits”  to 1 
+    // Step 2: Now subtract 1, which would set a total of  ï¿½num_middle_bitsï¿½  to 1 
     outer_bits_mask = outer_bits_mask - 1;
 
     // Now time to get rid of the outer bits too. Because we have already set all the bits corresponding 
@@ -193,7 +196,7 @@ static unsigned int get_mid_bits(unsigned int value, int num_middle_bits, int nu
 
 }
 
-static unsigned int get_end_bits(unsigned int value, int num_bits)
+unsigned int get_end_bits(unsigned int value, int num_bits)
 {
     return (value % (1 << num_bits));
 }

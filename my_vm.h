@@ -63,6 +63,9 @@ valid_bit* vbitmap;
 valid_bit* pbitmap;
 
 void set_physical_mem();
+unsigned int get_top_bits(unsigned int value, int num_bits);
+unsigned int get_end_bits(unsigned int value, int num_bits);
+unsigned int get_mid_bits(unsigned int value, int num_middle_bits, int num_lower_bits);
 int get_ppn(void*);
 pte_t* translate(pde_t *pgdir, void *va);
 int page_map(pde_t *pgdir, void *va, void* pa);
