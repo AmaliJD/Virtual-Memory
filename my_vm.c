@@ -12,7 +12,7 @@ void set_physical_mem() {
     int num_pages = MEMSIZE / PGSIZE;
     int num_entries_per_page = PGSIZE / sizeof(pte_t);
     double ob = log10(PGSIZE) / log10(2);
-    off_bits = ceil(ob);
+    off_bits = (int)ceil(ob);
     mid_bits = (32 - off_bits) / 2;
     front_bits = front_bits;
 
@@ -27,7 +27,7 @@ void set_physical_mem() {
     //HINT: Also calculate the number of physical and virtual pages and allocate
     //virtual and physical bitmaps and initialize them
 	
-	tlb_store->miss_count = 0;
+	tlb_store.miss_count = 0;
 }
 
 
@@ -36,25 +36,25 @@ void set_physical_mem() {
  * Feel free to extend the function arguments or return type.
  */
 int
-add_TLB(void* va, void* pa)
+add_TLB(void* va, pte_t* pa)
 {
 
     /*Part 2 HINT: Add a virtual to physical page translation to the TLB */
 	
-    // tlb_store->miss_count += 1;
-	// int i;
+     tlb_store.miss_count += 1;
+
+	 int i = 0;
+	 while(tlb_store.page_dir_nums[i] != NULL)
+	 {
+	 	i++;
+	 	if(i >= TLB_ENTRIES){break;}
+	 }
 	
-	// while(page_dir_nums[i] != 0)
-	// {
-	// 	i++;
-	// 	if(i >= TLB_ENTRIES){break;}
-	// }
+	 unsigned int entry_value = get_top_bits((unsigned int)va, front_bits + mid_bits);
+	 unsigned int pa_value = (unsigned int)pa;
 	
-	// unsigned int entry_value = get_top_bits((unsigned int)va, front_bits + mid_bits);
-	// unsigned int pa_value = (unsigned int)pa;
-	
-	// page_dir_nums[i] = entry_value;
-	// physical_addrs[i] = pa_value;
+     tlb_store.page_dir_nums[i] = entry_value;
+     tlb_store.physical_addrs[i] = pa_value;
 
     return 1;
 }
@@ -69,24 +69,22 @@ pte_t*
 check_TLB(void* va) {
 
     /* Part 2: TLB lookup code here */
-// 	unsigned int entry_value = get_top_bits((unsigned int)va, front_bits + mid_bits);
+ 	unsigned int entry_value = get_top_bits((unsigned int)va, front_bits + mid_bits);
 	
-// 	int i;
+ 	int i = 0;
 	
-// 	while(page_dir_nums[i] != entry_value)
-// 	{
-// 		i++;
-// 		if(i >= TLB_ENTRIES)
-// 		{
-// 			reutrn NULL;
-// 		}
-// 	}
+ 	while(tlb_store.page_dir_nums[i] != entry_value)
+ 	{
+ 		i++;
+ 		if(i >= TLB_ENTRIES)
+ 		{
+ 			reutrn NULL;
+ 		}
+ 	}
 	
-// 	pte_t* pa_value = physical_addrs[i];
+ 	pte_t* pa_value = tlb_store.physical_addrs[i];
 	
-// 	return pa_value;
-// 
-    return 1;
+ 	return pa_value;
 }
 
 
@@ -121,26 +119,25 @@ pte_t* translate(pde_t* pgdir, void* va) {
     /*
         Go to pgdir. Offset by vpn to get pagetable address
         Go to pagetable address. Offset by ppn to get page address
-        Go to page address. Offset by pageoff to get data address
-
+        Go to page address. Offset by off to get data address
         Go to data address -> retrieve value
     */
 	
 	// check TLB first
-	pte_t* paddr; /* = checkTLB(va);*/
+	pte_t* paddr = checkTLB(va);
 	
 	if(paddr == NULL)
 	{
 		unsigned int vaddr = (unsigned int)va;
 		unsigned int vpn = get_top_bits(vaddr, front_bits);
-		unsigned int ppn = get_mid_bits(vaddr, mid_bits);
+		unsigned int ppn = get_mid_bits(vaddr, mid_bits, off_bits);
 		unsigned int off = get_end_bits(vaddr, off_bits);
 
 		pte_t* outer = pgdir[vpn];
 		pte_t* inner = outer[ppn];
 		paddr = &inner[off];
 		
-		add_TLB(va, (void*)paddr);
+		add_TLB(va, paddr);
 	}
 	
     return paddr;
@@ -159,7 +156,7 @@ unsigned int get_top_bits(unsigned int value, int num_bits)
 {
     //Assume you would require just the higher order (outer)  bits, 
     //that is first few bits from a number (e.g., virtual address) 
-    //So given an  unsigned int value, to extract just the higher order (outer)  �num_bits�
+    //So given an  unsigned int value, to extract just the higher order (outer)  ?num_bits?
     int num_bits_to_prune = 32 - num_bits; //32 assuming we are using 32-bit address 
     return (value >> num_bits_to_prune);
 }
@@ -181,11 +178,11 @@ unsigned int get_mid_bits(unsigned int value, int num_middle_bits, int num_lower
 
     // Next, you need to build a mask to prune the outer bits. How do we build a mask?   
 
-    // Step1: First, take a power of 2 for �num_middle_bits�  or simply,  a left shift of number 1.  
+    // Step1: First, take a power of 2 for ?num_middle_bits?  or simply,  a left shift of number 1.  
     // You could try this in your calculator too.
     unsigned int outer_bits_mask = (1 << num_middle_bits);
 
-    // Step 2: Now subtract 1, which would set a total of  �num_middle_bits�  to 1 
+    // Step 2: Now subtract 1, which would set a total of  ?num_middle_bits?  to 1 
     outer_bits_mask = outer_bits_mask - 1;
 
     // Now time to get rid of the outer bits too. Because we have already set all the bits corresponding 
@@ -376,13 +373,11 @@ void put_value(void* va, void* val, int size) {
      * function.
      */
 
-     //INSERT TRANSLATE CALL - assuming it just returns the addr for the start of phys page in physical_mem
+    //INSERT TRANSLATE CALL - assuming it just returns the addr for the start of phys page in physical_mem
     pde_t* paddr = translate(page_dir, va);
 
     int index = (*paddr) * (PGSIZE - 1);
     memcpy(paddr, val, size);
-
-
 }
 
 
