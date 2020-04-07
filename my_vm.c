@@ -252,14 +252,26 @@ page_map(pde_t* pgdir, void* va, void* pa)
     /*HINT: Similar to translate(), find the page directory (1st level)
     and page table (2nd-level) indices. If no mapping exists, set the
     virtual to physical mapping */
+    pte_t addr = (pte_t) va;
+    int offset_bits = (int) ciel(log2(PGSIZE));
+    int second_bits = min((32-offset_bits)/2 , offset_bits);
+    if (off_bits == second_bits){
+        second_bits -= (int) log2(sizeof(pde_t));
+    }
+    long mask = (1<<second_bits)-1;
+    
+    //insert lock call to make threadsafe
+    if(pgdir[offset_bits] == NULL){
+        pte_t* page = malloc(PGSIZE/sizeof(pte_t));
+        pgdir[offset_bits] = *page;
+    }
+    
+    pte_t* next_lev =  pgdir[offset_bits];
+    next_lev[second_bits] = (pte_t) pa;
+    //unlock call
 
-    /*
-    rough logic:
-    1. translate the addr
-    2. check if respective entry is taken via bitmap
-    */
 
-    return -1;
+    return 0;
 }
 
 
