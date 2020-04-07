@@ -31,27 +31,27 @@ void set_physical_mem() {
 
     // add to page tables
     // ** need to calculate page_dir_size ** assume for now = PGSIZE
-    int page_dir_size = PGSIZE;
-    int vpage_count;
-    int ppage_count;
+    // int page_dir_size = PGSIZE;
+    // int vpage_count;
+    // int ppage_count;
 
-    int i, j, p = 0;
-    for (i = 0; i < vpage_count; i++)
-    {
-        // add each virtual page to page_dir
-        page_dir[i] = &page_dir[page_dir_size + (i * PGSIZE)];
-        pde_t* vptr = page_dir[i];
+    // int i, j, p = 0;
+    // for (i = 0; i < vpage_count; i++)
+    // {
+    //     // add each virtual page to page_dir
+    //     page_dir[i] = &page_dir[page_dir_size + (i * PGSIZE)];
+    //     pde_t* vptr = page_dir[i];
 
-        // add each physical page to each virtual page
-        for (j = 0; j < PGSIZE; j++)
-        {
-            if (p >= ppage_count) { break; }
+    //     // add each physical page to each virtual page
+    //     for (j = 0; j < PGSIZE; j++)
+    //     {
+    //         if (p >= ppage_count) { break; }
 
-            vptr[j] = &page_dir[(page_dir_size + (vpage_count * PGSIZE)) + (p * PGSIZE)];
+    //         vptr[j] = &page_dir[(page_dir_size + (vpage_count * PGSIZE)) + (p * PGSIZE)];
 
-            p++;
-        }
-    }
+    //         p++;
+    //     }
+    // }
 }
 
 
