@@ -26,8 +26,32 @@ void set_physical_mem() {
     pbitmap = (valid_bit*)malloc(vpage_count);
     //HINT: Also calculate the number of physical and virtual pages and allocate
     //virtual and physical bitmaps and initialize them
-	
-	tlb_store.miss_count = 0;
+
+    tlb_store.miss_count = 0;
+
+    // add to page tables
+    // ** need to calculate page_dir_size ** assume for now = PGSIZE
+    int page_dir_size = PGSIZE;
+    int vpage_count;
+    int ppage_count;
+
+    int i, j, p = 0;
+    for (i = 0; i < vpage_count; i++)
+    {
+        // add each virtual page to page_dir
+        page_dir[i] = &page_dir[page_dir_size + (i * PGSIZE)];
+        pde_t* vptr = page_dir[i];
+
+        // add each physical page to each virtual page
+        for (j = 0; j < PGSIZE; j++)
+        {
+            if (p >= ppage_count) { break; }
+
+            vptr[j] = &page_dir[(page_dir_size + (vpage_count * PGSIZE)) + (p * PGSIZE)];
+
+            p++;
+        }
+    }
 }
 
 
@@ -40,21 +64,21 @@ add_TLB(void* va, pte_t* pa)
 {
 
     /*Part 2 HINT: Add a virtual to physical page translation to the TLB */
-	
-     tlb_store.miss_count += 1;
 
-	 int i = 0;
-	 while(tlb_store.page_dir_nums[i] != NULL)
-	 {
-	 	i++;
-	 	if(i >= TLB_ENTRIES){break;}
-	 }
-	
-	 unsigned int entry_value = get_top_bits((unsigned int)va, front_bits + mid_bits);
-	 unsigned int pa_value = (unsigned int)pa;
-	
-     tlb_store.page_dir_nums[i] = entry_value;
-     tlb_store.physical_addrs[i] = pa_value;
+    tlb_store.miss_count += 1;
+
+    int i = 0;
+    while (tlb_store.page_dir_nums[i] != NULL)
+    {
+        i++;
+        if (i >= TLB_ENTRIES) { break; }
+    }
+
+    unsigned int entry_value = get_top_bits((unsigned int)va, front_bits + mid_bits);
+    unsigned int pa_value = (unsigned int)pa;
+
+    tlb_store.page_dir_nums[i] = entry_value;
+    tlb_store.physical_addrs[i] = pa_value;
 
     return 1;
 }
@@ -69,22 +93,22 @@ pte_t*
 check_TLB(void* va) {
 
     /* Part 2: TLB lookup code here */
- 	unsigned int entry_value = get_top_bits((unsigned int)va, front_bits + mid_bits);
-	
- 	int i = 0;
-	
- 	while(tlb_store.page_dir_nums[i] != entry_value)
- 	{
- 		i++;
- 		if(i >= TLB_ENTRIES)
- 		{
- 			return NULL;
- 		}
- 	}
-	
- 	pte_t* pa_value = tlb_store.physical_addrs[i];
-	
- 	return pa_value;
+    unsigned int entry_value = get_top_bits((unsigned int)va, front_bits + mid_bits);
+
+    int i = 0;
+
+    while (tlb_store.page_dir_nums[i] != entry_value)
+    {
+        i++;
+        if (i >= TLB_ENTRIES)
+        {
+            return NULL;
+        }
+    }
+
+    pte_t* pa_value = tlb_store.physical_addrs[i];
+
+    return pa_value;
 }
 
 
@@ -122,24 +146,26 @@ pte_t* translate(pde_t* pgdir, void* va) {
         Go to page address. Offset by off to get data address
         Go to data address -> retrieve value
     */
-	
-	// check TLB first
-	pte_t* paddr = check_TLB(va);
-	
-	if(paddr == NULL)
-	{
-		unsigned int vaddr = (unsigned int)va;
-		unsigned int vpn = get_top_bits(vaddr, front_bits);
-		unsigned int ppn = get_mid_bits(vaddr, mid_bits, off_bits);
-		unsigned int off = get_end_bits(vaddr, off_bits);
 
-		pte_t* outer = pgdir[vpn];
-		pte_t* inner = outer[ppn];
-		paddr = &inner[off];
-		
-		add_TLB(va, paddr);
-	}
-	
+    // check TLB first
+    pte_t* paddr = check_TLB(va);
+
+    if (paddr == NULL)
+    {
+        unsigned int vaddr = (unsigned int)va;
+        unsigned int vpn = get_top_bits(vaddr, front_bits);
+        unsigned int ppn = get_mid_bits(vaddr, mid_bits, off_bits);
+        unsigned int off = get_end_bits(vaddr, off_bits);
+
+        printf("PGDIR: %lx\n", pgdir);
+        pte_t* outer = pgdir[vpn];
+        printf("OUTER: %lx\n", outer);
+        pte_t* inner = outer[ppn];
+        paddr = &inner[off];
+
+        add_TLB(va, paddr);
+    }
+
     return paddr;
 
     //If translation not successfull
@@ -252,22 +278,25 @@ page_map(pde_t* pgdir, void* va, void* pa)
     /*HINT: Similar to translate(), find the page directory (1st level)
     and page table (2nd-level) indices. If no mapping exists, set the
     virtual to physical mapping */
-    pte_t addr = (pte_t) va;
-    int offset_bits = (int) ciel(log2(PGSIZE));
-    int second_bits = min((32-offset_bits)/2 , offset_bits);
-    if (off_bits == second_bits){
-        second_bits -= (int) log2(sizeof(pde_t));
+    pte_t addr = (pte_t)va;
+    int offset_bits = (int)ceil(log2(PGSIZE));
+    //int second_bits = min((32 - offset_bits) / 2, offset_bits);
+    int a = (32 - offset_bits) / 2;
+    int b = offset_bits;
+    int second_bits = (a > b) ? a : b;
+    if (off_bits == second_bits) {
+        second_bits -= (int)log2(sizeof(pde_t));
     }
-    long mask = (1<<second_bits)-1;
-    
+    long mask = (1 << second_bits) - 1;
+
     //insert lock call to make threadsafe
-    if(pgdir[offset_bits] == NULL){
-        pte_t* page = malloc(PGSIZE/sizeof(pte_t));
+    if (pgdir[offset_bits] == NULL) {
+        pte_t* page = malloc(PGSIZE / sizeof(pte_t));
         pgdir[offset_bits] = *page;
     }
-    
-    pte_t* next_lev =  pgdir[offset_bits];
-    next_lev[second_bits] = (pte_t) pa;
+
+    pte_t* next_lev = pgdir[offset_bits];
+    next_lev[second_bits] = (pte_t)pa;
     //unlock call
 
 
@@ -347,7 +376,7 @@ void* a_malloc(unsigned int num_bytes) {
     unsigned int ppn = next[1]; // index of innerpage
     //unsigned int off = num_bytes;
     unsigned int off = 0; // assuming new page per a_malloc
-    unsigned int vaddr = (vpn * (1<<32)) + (ppn *(1 << (32 - front_bits))) + off;
+    unsigned int vaddr = (vpn * (1 << 32)) + (ppn * (1 << (32 - front_bits))) + off;
 
     void* vpointer = vaddr;
     return vpointer;
@@ -385,7 +414,7 @@ void put_value(void* va, void* val, int size) {
      * function.
      */
 
-    //INSERT TRANSLATE CALL - assuming it just returns the addr for the start of phys page in physical_mem
+     //INSERT TRANSLATE CALL - assuming it just returns the addr for the start of phys page in physical_mem
     pde_t* paddr = translate(page_dir, va);
 
     int index = (*paddr) * (PGSIZE - 1);
@@ -429,3 +458,15 @@ void mat_mult(void* mat1, void* mat2, int size, void* answer) {
 
 
 }
+
+/* TESTING
+main()
+{
+    void* a = a_malloc(400000);
+    printf("allocated 400000 bytes");
+
+    int i;
+    void* v;// = &i;
+    put_value(a, v, 3);
+    printf("put_value 3 into void* a");
+}*/
