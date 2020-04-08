@@ -21,38 +21,23 @@ void set_physical_mem() {
 
     //not sure what type to set physical mem to so i have it is
     physical_mem = (unsigned char*)malloc(MEMSIZE);
-    page_dir = (pde_t*)malloc(page_count);
-    vbitmap = (valid_bit*)malloc(page_count);
-    pbitmap = (valid_bit*)malloc(vpage_count);
+    page_dir = (pde_t*)malloc(vpage_count);
+    vbitmap = (valid_bit*)malloc(vpage_count);
+    pbitmap = (valid_bit*)malloc(page_count);
     //HINT: Also calculate the number of physical and virtual pages and allocate
     //virtual and physical bitmaps and initialize them
 
+    printf("Off: %d\nMid: %d\nTop: %d\n\n", off_bits, mid_bits, front_bits);
+    sleep(1);
+
+    printf("ppage_count: %d\nvpage_count: %d\n\n", ppage_count, vpage_count);
+    sleep(1);
+
+    printf("physical_mem: %lx\npage_dir: %lx\n\n", physical_mem, page_dir);
+    sleep(1);
+
     tlb_store.miss_count = 0;
     preload();
-
-    // add to page tables
-        // ** need to calculate page_dir_size ** assume for now = PGSIZE
-        /*int page_dir_size = PGSIZE;
-        int vpage_count;
-        int ppage_count;
-
-        int i, j, p = 0;
-        for (i = 0; i < vpage_count; i++)
-        {
-            // add each virtual page to page_dir
-            page_dir[i] = &page_dir[page_dir_size + (i * PGSIZE)];
-            pde_t* vptr = page_dir[i];
-
-            // add each physical page to each virtual page
-            for (j = 0; j < PGSIZE; j++)
-            {
-                if (p >= ppage_count) { break; }
-
-                vptr[j] = &page_dir[(page_dir_size + (vpage_count * PGSIZE)) + (p * PGSIZE)];
-
-                p++;
-            }
-        }*/
 }
 
 
@@ -161,11 +146,15 @@ pte_t* translate(pde_t* pgdir, void* va) {
         unsigned int ppn = get_mid_bits(vaddr, mid_bits, off_bits);
         unsigned int off = get_end_bits(vaddr, off_bits);
 
-        printf("PGDIR: %lx\n", pgdir);
+        printf("translating address...\n");
+        printf("page directory: %lx\n", pgdir);
         pte_t* outer = pgdir[vpn];
-        printf("OUTER: %lx\n", outer);
+        printf("virtual page addr: %lx\n", outer);
         pte_t* inner = outer[ppn];
+        printf("physical page addr: %lx\n", inner);
         paddr = &inner[off];
+        printf("physical address: %lx\n", paddr);
+        sleep(1);
 
         add_TLB(va, paddr);
     }
@@ -553,10 +542,9 @@ void mat_mult(void* mat1, void* mat2, int size, void* answer) {
 main()
 {
     void* a = a_malloc(400000);
-    printf("allocated 400000 bytes\n");
+    printf("\n\nallocated 400000 bytes to void* a\n");
 
-    int i;
-    void* v;// = &i;
+    void* v;
     put_value(a, v, 3);
     printf("put_value 3 into void* a\n");
 }//*/
