@@ -36,15 +36,15 @@ struct tlb {
     * address translation.
     */
     /*LOGIC:
-        contains 3 arrays with a 1:1:1 index correspondence: 
+        contains 3 arrays with a 1:1:1 index correspondence:
         1. the entry number in the page directory
         2. the physical mem address
         3. a short in array for entry age (with each mem access we increment, when insert new set to 0)
     */
-	int mem_accesses;
+    int mem_accesses;
     int miss_count;
     int page_dir_nums[TLB_ENTRIES];
-    int physical_addrs[TLB_ENTRIES];
+    unsigned long physical_addrs[TLB_ENTRIES];
     short int age[TLB_ENTRIES];
 
 };
@@ -54,15 +54,15 @@ pde_t* page_dir;
 
 unsigned char* physical_mem = NULL;
 
-pthread_mutex_t pt_lock, 
-                vbitmap_lock,
-                pbitmap_lock,
-                tlb_lock; 
+pthread_mutex_t pt_lock,
+vbitmap_lock,
+pbitmap_lock,
+tlb_lock;
 
 int vpage_count;
 int ppage_count;
 int page_entries;
-int page_count = (int) MEMSIZE/PGSIZE;
+int page_count = (int)MEMSIZE / PGSIZE;
 
 
 valid_bit* vbitmap;
@@ -73,15 +73,15 @@ unsigned int get_top_bits(unsigned int value, int num_bits);
 unsigned int get_end_bits(unsigned int value, int num_bits);
 unsigned int get_mid_bits(unsigned int value, int num_middle_bits, int num_lower_bits);
 int get_ppn(void*);
-pte_t* translate(pde_t *pgdir, void *va);
-int page_map(pde_t *pgdir, void *va, void* pa);
-bool check_in_tlb(void *va);
-void put_in_tlb(void *va, void *pa);
-void *a_malloc(unsigned int num_bytes);
-void a_free(void *va, int size);
-void put_value(void *va, void *val, int size);
-void get_value(void *va, void *val, int size);
-void mat_mult(void *mat1, void *mat2, int size, void *answer);
+pte_t* translate(pde_t* pgdir, void* va);
+int page_map(pde_t* pgdir, void* va, void* pa);
+bool check_in_tlb(void* va);
+void put_in_tlb(void* va, void* pa);
+void* a_malloc(unsigned int num_bytes);
+void a_free(void* va, int size);
+void put_value(void* va, void* val, int size);
+void get_value(void* va, void* val, int size);
+void mat_mult(void* mat1, void* mat2, int size, void* answer);
 void print_TLB_missrate();
 
 #endif

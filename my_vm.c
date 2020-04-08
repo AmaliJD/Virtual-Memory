@@ -54,14 +54,14 @@ add_TLB(void* va, pte_t* pa)
     tlb_store.miss_count += 1;
 
     int i = 0;
-    while (tlb_store.page_dir_nums[i] != NULL)
+    while (tlb_store.page_dir_nums[i] != 0)
     {
         i++;
         if (i >= TLB_ENTRIES) { break; }
     }
 
     unsigned int entry_value = get_top_bits((unsigned int)va, front_bits + mid_bits);
-    unsigned int pa_value = (unsigned int)pa;
+    unsigned long pa_value = (unsigned long)pa;
 
     tlb_store.page_dir_nums[i] = entry_value;
     tlb_store.physical_addrs[i] = pa_value;
@@ -146,17 +146,23 @@ pte_t* translate(pde_t* pgdir, void* va) {
         unsigned int ppn = get_mid_bits(vaddr, mid_bits, off_bits);
         unsigned int off = get_end_bits(vaddr, off_bits);
 
-        printf("translating address...\n");
-        printf("page directory: %lx\n", pgdir);
+        printf("\tTLB miss: translating address...\n");
+        printf("\tpage directory: %lx\n", pgdir);
         pte_t* outer = pgdir[vpn];
-        printf("virtual page addr: %lx\n", outer);
+        printf("\tvirtual page addr: %lx\n", outer);
         pte_t* inner = outer[ppn];
-        printf("physical page addr: %lx\n", inner);
+        printf("\tphysical page addr: %lx\n", inner);
         paddr = &inner[off];
-        printf("physical address: %lx\n", paddr);
+        printf("\tphysical address: %lx\n", paddr);
         sleep(1);
 
         add_TLB(va, paddr);
+    }
+    else
+    {
+        printf("\tTLB hit\n");
+        printf("\tphysical address: %lx\n", paddr);
+        sleep(1);
     }
 
     return paddr;
@@ -496,8 +502,9 @@ void put_value(void* va, void* val, int size) {
      //INSERT TRANSLATE CALL - assuming it just returns the addr for the start of phys page in physical_mem
     pde_t* paddr = translate(page_dir, va);
 
-    int index = (*paddr) * (PGSIZE - 1);
+    //int index = (*paddr) * (PGSIZE - 1);
     memcpy(paddr, val, size);
+    printf("value put = %d\n", *paddr);
 }
 
 
@@ -509,14 +516,18 @@ void get_value(void* va, void* val, int size) {
     */
     //logic: simply get the physical addr, and set va to be the dereferenced value???
     pde_t* paddr = translate(page_dir, va);
-    int index = (*paddr) * (PGSIZE - 1);
+    
+    /*int index = (*paddr) * (PGSIZE - 1);
     int i;
     unsigned char* temp = (char*)malloc(size);
     //not sure if this is right but i'm just setting val[i] = phys_mem[i]
     for (i = index; i < index + PGSIZE; i++) {
         temp[i] = physical_mem[i];
     }
-    memcpy(temp, val, temp);
+    memcpy(temp, val, temp);*/
+
+    memcpy(val, paddr, size);
+    printf("value got = %d\n", *paddr);
 }
 
 
@@ -541,10 +552,16 @@ void mat_mult(void* mat1, void* mat2, int size, void* answer) {
 //* TESTING
 main()
 {
-    void* a = a_malloc(400000);
-    printf("\n\nallocated 400000 bytes to void* a\n");
+    void* a = a_malloc(sizeof(int));
+    printf("\n\nallocated %d bytes to void* a\n", sizeof(int));
 
-    void* v;
-    put_value(a, v, 3);
-    printf("put_value 3 into void* a\n");
+    int i = 3;
+    printf("\nput_value %d into void* a\n", i);
+    put_value(a, &i, sizeof(int));
+    printf("put_value success\n");
+
+    int ii;
+    printf("\nget_value from void* a\n");
+    get_value(a, &ii, sizeof(int));
+    printf("get_value success. a = %d\n", ii);
 }//*/
