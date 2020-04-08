@@ -295,7 +295,7 @@ page_map(pde_t* pgdir, void* va, void* pa)
 
 
 /*Function that gets the next available page and returns respective index*/
-void* get_next_avail(int page_count) {
+void* get_next_avail(int num_pages) {
 
     //Use virtual address bitmap to find the next free page
     /*
@@ -303,22 +303,22 @@ void* get_next_avail(int page_count) {
     */
     int index = 0;
     int i = 0;
-    int temp = page_count;
+    int temp = num_pages;
     int* arr = malloc(page_count * sizeof(int));
     int zero = 1;
     //should we throw in a lock here??? why not
     pthread_mutex_lock(&vbitmap_lock);
-    for (i = 0; i < total_page_count; i++) {
+    for (i = 0; i < page_count; i++) {
         if (vbitmap[i] == 0){
-                printf("0\n");
-                zero = 0
+                //printf("0\n");
+                zero = 0;
                 temp--;
                 arr[index] = i;
                 index++;
         }
         else{
-            printf("0\n");
-            temp = page_count;
+            //printf("1\n");
+            temp = num_pages;
             index = 0;
             zero = 1;
         }
@@ -341,7 +341,7 @@ int* get_avail_phys(int count){
     int i;
     int index = 0;
     pthread_mutex_lock(&pbitmap_lock);
-    for (i = 0; i < total_page_count; i++) {
+    for (i = 0; i < page_count; i++) {
         if (pbitmap[i] == 0){
             arr[index] = i;
             index++;
@@ -388,10 +388,10 @@ void* a_malloc(unsigned int num_bytes) {
     }
 
     //next[0] = vpage number, next[1] = physical page number
-    int page_count = (int) ciel(num_bytes/PGSIZE);
+    int num_pages = (int) ceil(num_bytes/PGSIZE);
     
     //getting the available CONSECUTIVE vpage entries 
-    int* next_vp = get_next_avail(total_page_count, page_count);
+    int* next_vp = get_next_avail(num_pages);
     if (next_vp == NULL) {
         return NULL;
     }
@@ -493,12 +493,19 @@ void mat_mult(void* mat1, void* mat2, int size, void* answer) {
 }
 
 /* TESTING*/
-main()
+int main()
 {
-    vbitmap = malloc(10*sizeof(unsigned char));
-    total_page_count = 10;
+    int* temp = a_malloc(10*sizeof(int));
+    /*int i;
+	for(i = 0; i < 10; i++)
+		printf("0x%x\n", temp[i]);
+	*/
+	printf("%x\n", temp);
+	printf("%lf\n", temp);
+	/*
+	page_count = 10;
     int i;
-    for(i = 0; i < 20; i++){
+    for(i = 0; i < 10; i++){
         if(i >= 5 && i <=8){
             vbitmap[i] = 0;
         }
@@ -508,7 +515,8 @@ main()
     }
 
     int* arr = get_next_avail(3);
-    
+    */
+	return 0;
 
 }
 /* */
