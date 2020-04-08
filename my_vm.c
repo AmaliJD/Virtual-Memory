@@ -295,7 +295,7 @@ page_map(pde_t* pgdir, void* va, void* pa)
 
 
 /*Function that gets the next available page and returns respective index*/
-void* get_next_avail(int num_pages, int page_count) {
+void* get_next_avail(int page_count) {
 
     //Use virtual address bitmap to find the next free page
     /*
@@ -308,7 +308,7 @@ void* get_next_avail(int num_pages, int page_count) {
     int zero = 1;
     //should we throw in a lock here??? why not
     pthread_mutex_lock(&vbitmap_lock);
-    for (i = 0; i < num_pages; i++) {
+    for (i = 0; i < total_page_count; i++) {
         if (vbitmap[i] == 0){
                 printf("0\n");
                 zero = 0
@@ -341,7 +341,7 @@ int* get_avail_phys(int count){
     int i;
     int index = 0;
     pthread_mutex_lock(&pbitmap_lock);
-    for (i = 0; i < num_pages; i++) {
+    for (i = 0; i < total_page_count; i++) {
         if (pbitmap[i] == 0){
             arr[index] = i;
             index++;
@@ -496,17 +496,18 @@ void mat_mult(void* mat1, void* mat2, int size, void* answer) {
 main()
 {
     vbitmap = malloc(10*sizeof(unsigned char));
+    total_page_count = 10;
     int i;
     for(i = 0; i < 20; i++){
         if(i >= 5 && i <=8){
-            temp[i] = 0;
+            vbitmap[i] = 0;
         }
         else{
-            temp[i] = 1;
+            vbitmap[i] = 1;
         }
     }
 
-    int* arr = get_next_avail(10, 3);
+    int* arr = get_next_avail(3);
     
 
 }
