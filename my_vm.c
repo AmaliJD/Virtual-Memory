@@ -304,16 +304,17 @@ page_map(pde_t* pgdir, void* va, void* pa)
 
     //insert lock call to make threadsafe
     pthread_mutex_lock(&pt_lock);
-    if (pgdir[offset_bits] == NULL) {
+    if (!pgdir[offset_bits]) {
         pte_t* page = malloc(PGSIZE / sizeof(pte_t));
         pgdir[offset_bits] = *page;
     }
 
-    pte_t* next_lev = pgdir[offset_bits];
-    next_lev[second_bits] = (pte_t)pa;
+    
+    ((pte_t *) pgdir[offset_bits])[second_bits] = (pte_t)pa;
     pthread_mutex_unlock(&pt_lock);
     //unlock call
 
+    //need to check TLB and update insert checkTLB call
 
     return 0;
 }
@@ -332,7 +333,6 @@ void* get_next_avail(int num_pages, int page_count) {
     int* arr = malloc(page_count * sizeof(int));
     int zero = 1;
     //should we throw in a lock here??? why not
-    pthread_mutex_lock(&pbitmap_lock);
     pthread_mutex_lock(&vbitmap_lock);
     for (i = 0; i < num_pages; i++) {
         if (vbitmap[i] == 0){
@@ -351,13 +351,36 @@ void* get_next_avail(int num_pages, int page_count) {
         }
     }    
     pthread_mutex_unlock(&vbitmap_lock);
-    pthread_mutex_unlock(&pbitmap_lock);
     if(temp == 0){
         return (void*) arr;
     }
     else{ 
         return NULL;
     }
+}
+
+int* get_avail_phys(int count){
+    int* arr = malloc(page_count * sizeof(int));
+    int temp = count;
+    int i;
+    int index = 0;
+    pthread_mutex_lock(&pbitmap_lock);
+    for (i = 0; i < num_pages; i++) {
+        if (pbitmap[i] == 0){
+            arr[index] = i;
+            index++;
+        }
+        if (count == 0){
+            break;
+        }
+    }    
+    pthread_mutex_unlock(&pbitmap_lock);
+        if (count == 0){
+            return arr;
+        }
+        else{
+            return NULL;
+        }
 }
 
 
@@ -390,16 +413,24 @@ void* a_malloc(unsigned int num_bytes) {
 
     //next[0] = vpage number, next[1] = physical page number
     int page_count = (int) ciel(num_bytes/PGSIZE);
-    int* next = get_next_avail(total_page_count, page_count);
-    if (next == NULL) {
+    
+    //getting the available CONSECUTIVE vpage entries 
+    int* next_vp = get_next_avail(total_page_count, page_count);
+    if (next_vp == NULL) {
         return NULL;
     }
-
+    
+    //getting the available physical pages (doesn't have to be consecutive)
+    int* next_pp = get_avail_phys(page_count);
+    if (next_pp == NULL){
+        return NULL;
+    }
     //need to figure out how many entries in a page
     //page_dir[next[0]] = (pde_t*)malloc(PGSIZE);
 
-    unsigned int vpn = next[0]; // index of outerpage
-    unsigned int ppn = next[1]; // index of innerpage
+    //having issues working out how to handle vaddrs for malloc calls that require multiple pages
+    unsigned int vpn = next_vp[0]; // index of outerpage
+    unsigned int ppn = next_vp[1]; // index of innerpage
     //unsigned int off = num_bytes;
     unsigned int off = 0; // assuming new page per a_malloc
     unsigned int vaddr = (vpn * (1 << 32)) + (ppn * (1 << (32 - front_bits))) + off;
@@ -485,7 +516,7 @@ void mat_mult(void* mat1, void* mat2, int size, void* answer) {
 
 }
 
-/* TESTING
+/* TESTING*/
 main()
 {
     void* a = a_malloc(400000);
@@ -495,4 +526,5 @@ main()
     void* v;// = &i;
     put_value(a, v, 3);
     printf("put_value 3 into void* a");
-}*/
+}
+/* */

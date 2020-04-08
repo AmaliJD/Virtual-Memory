@@ -62,7 +62,7 @@ pthread_mutex_t pt_lock,
 int vpage_count;
 int ppage_count;
 int page_entries;
-int page_count = (int) MEMSIZE/PGSIZE;
+int total_page_count = (int) MEMSIZE/PGSIZE;
 
 
 valid_bit* vbitmap;
