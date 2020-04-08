@@ -64,7 +64,7 @@ add_TLB(void* va, pte_t* pa)
 {
 
     /*Part 2 HINT: Add a virtual to physical page translation to the TLB */
-
+    pthread_mutex_lock(&tlb_lock);
     tlb_store.miss_count += 1;
 
     int i = 0;
@@ -79,6 +79,7 @@ add_TLB(void* va, pte_t* pa)
 
     tlb_store.page_dir_nums[i] = entry_value;
     tlb_store.physical_addrs[i] = pa_value;
+    pthread_mutex_unlock(&tlb_lock);
 
     return 1;
 }
@@ -93,6 +94,7 @@ pte_t*
 check_TLB(void* va) {
 
     /* Part 2: TLB lookup code here */
+    pthread_mutex_lock(&tlb_lock);
     unsigned int entry_value = get_top_bits((unsigned int)va, front_bits + mid_bits);
 
     int i = 0;
@@ -107,6 +109,7 @@ check_TLB(void* va) {
     }
 
     pte_t* pa_value = tlb_store.physical_addrs[i];
+    pthread_mutex_unlock(&tlb_lock);
 
     return pa_value;
 }
@@ -261,7 +264,17 @@ static int get_bit_at_index(char* bitmap, int index)
 // ---------------------------------------------------------------------------------------------------------------------
 
 
+void update_pbitmap(int index){
+    pthread_mutex_lock(&pbitmap_lock);
+    pbitmap[index] = !pbitmap[index];
+    pthread_mutex_unlock(&pbitmap_lock);
+}
 
+void update_vbitmap(int index){
+    pthread_mutex_lock(&vbitmap_lock);
+    vbitmap[index] = !pbitmap[index];
+    pthread_mutex_unlock(&vbitmap_lock);
+}
 
 
 
@@ -290,6 +303,7 @@ page_map(pde_t* pgdir, void* va, void* pa)
     long mask = (1 << second_bits) - 1;
 
     //insert lock call to make threadsafe
+    pthread_mutex_lock(&pt_lock);
     if (pgdir[offset_bits] == NULL) {
         pte_t* page = malloc(PGSIZE / sizeof(pte_t));
         pgdir[offset_bits] = *page;
@@ -297,6 +311,7 @@ page_map(pde_t* pgdir, void* va, void* pa)
 
     pte_t* next_lev = pgdir[offset_bits];
     next_lev[second_bits] = (pte_t)pa;
+    pthread_mutex_unlock(&pt_lock);
     //unlock call
 
 
@@ -305,33 +320,43 @@ page_map(pde_t* pgdir, void* va, void* pa)
 
 
 /*Function that gets the next available page and returns respective index*/
-void* get_next_avail(int num_pages) {
+void* get_next_avail(int num_pages, int page_count) {
 
     //Use virtual address bitmap to find the next free page
     /*
     logic: simply iterate thru the pagedir bitmap and find the first 0 and return starting address for that page???
     */
-    int ppage_val = -1;
-    int vpage_val = -1;
-
+    int index = 0;
     int i = 0;
+    int temp = page_count;
+    int* arr = malloc(page_count * sizeof(int));
+    int zero = 1;
+    //should we throw in a lock here??? why not
+    pthread_mutex_lock(&pbitmap_lock);
+    pthread_mutex_lock(&vbitmap_lock);
     for (i = 0; i < num_pages; i++) {
-        if (vpage_val == -1 && vbitmap[i] == 0) {
-            vpage_val = i;
+        if (vbitmap[i] == 0){
+                zero = 0
+                temp--;
+                arr[index] = i;
+                index++;
         }
-        if (ppage_val == -1 && pbitmap[i] == 0) {
-            ppage_val = i;
+        else{
+            temp = page_count;
+            index = 0;
+            zero = 1;
         }
+        if (temp == 0){
+            break;
+        }
+    }    
+    pthread_mutex_unlock(&vbitmap_lock);
+    pthread_mutex_unlock(&pbitmap_lock);
+    if(temp == 0){
+        return (void*) arr;
     }
-
-    if (ppage_val == -1 || vpage_val == -1) {
+    else{ 
         return NULL;
-    }
-    else {
-        int* arr = malloc(2 * sizeof(int));
-        arr[0] = vpage_val;
-        arr[1] = ppage_val;
-        return (void*)arr;
     }
 }
 
@@ -364,7 +389,8 @@ void* a_malloc(unsigned int num_bytes) {
     }
 
     //next[0] = vpage number, next[1] = physical page number
-    int* next = get_next_avail(page_count);
+    int page_count = (int) ciel(num_bytes/PGSIZE);
+    int* next = get_next_avail(total_page_count, page_count);
     if (next == NULL) {
         return NULL;
     }

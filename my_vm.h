@@ -4,6 +4,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <math.h>
+#include <pthread.h>
 
 //Assume the address space is 32 bits, so the max memory size is 4GB
 //Page size is 4KB
@@ -52,6 +53,11 @@ struct tlb tlb_store;
 pde_t* page_dir;
 
 unsigned char* physical_mem = NULL;
+
+pthread_mutex_t pt_lock, 
+                vbitmap_lock,
+                pbitmap_lock,
+                tlb_lock; 
 
 int vpage_count;
 int ppage_count;
