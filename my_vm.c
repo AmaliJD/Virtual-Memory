@@ -28,30 +28,6 @@ void set_physical_mem() {
     //virtual and physical bitmaps and initialize them
 
     tlb_store.miss_count = 0;
-
-    // add to page tables
-    // ** need to calculate page_dir_size ** assume for now = PGSIZE
-    // int page_dir_size = PGSIZE;
-    // int vpage_count;
-    // int ppage_count;
-
-    // int i, j, p = 0;
-    // for (i = 0; i < vpage_count; i++)
-    // {
-    //     // add each virtual page to page_dir
-    //     page_dir[i] = &page_dir[page_dir_size + (i * PGSIZE)];
-    //     pde_t* vptr = page_dir[i];
-
-    //     // add each physical page to each virtual page
-    //     for (j = 0; j < PGSIZE; j++)
-    //     {
-    //         if (p >= ppage_count) { break; }
-
-    //         vptr[j] = &page_dir[(page_dir_size + (vpage_count * PGSIZE)) + (p * PGSIZE)];
-
-    //         p++;
-    //     }
-    // }
 }
 
 
@@ -276,8 +252,6 @@ void update_vbitmap(int index){
     pthread_mutex_unlock(&vbitmap_lock);
 }
 
-
-
 /*
 The function takes a page directory address, virtual address, physical address
 as an argument, and sets a page table entry. This function will walk the page
@@ -336,12 +310,14 @@ void* get_next_avail(int num_pages, int page_count) {
     pthread_mutex_lock(&vbitmap_lock);
     for (i = 0; i < num_pages; i++) {
         if (vbitmap[i] == 0){
+                printf("0\n");
                 zero = 0
                 temp--;
                 arr[index] = i;
                 index++;
         }
         else{
+            printf("0\n");
             temp = page_count;
             index = 0;
             zero = 1;
@@ -519,12 +495,19 @@ void mat_mult(void* mat1, void* mat2, int size, void* answer) {
 /* TESTING*/
 main()
 {
-    void* a = a_malloc(400000);
-    printf("allocated 400000 bytes");
-
+    vbitmap = malloc(10*sizeof(unsigned char));
     int i;
-    void* v;// = &i;
-    put_value(a, v, 3);
-    printf("put_value 3 into void* a");
+    for(i = 0; i < 20; i++){
+        if(i >= 5 && i <=8){
+            temp[i] = 0;
+        }
+        else{
+            temp[i] = 1;
+        }
+    }
+
+    int* arr = get_next_avail(10, 3);
+    
+
 }
 /* */
