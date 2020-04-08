@@ -14,10 +14,10 @@ void set_physical_mem() {
     double ob = log10(PGSIZE) / log10(2);
     off_bits = (int)ceil(ob);
     mid_bits = (32 - off_bits) / 2;
-    front_bits = front_bits;
+    front_bits = 32 - mid_bits - off_bits;
 
     ppage_count = 1 << mid_bits;
-    vpage_count = 1 << front_bits;
+    vpage_count = (ppage_count * sizeof(pte_t)) / PGSIZE;
 
     //not sure what type to set physical mem to so i have it is
     physical_mem = (unsigned char*)malloc(MEMSIZE);
@@ -28,6 +28,31 @@ void set_physical_mem() {
     //virtual and physical bitmaps and initialize them
 
     tlb_store.miss_count = 0;
+    preload();
+
+    // add to page tables
+        // ** need to calculate page_dir_size ** assume for now = PGSIZE
+        /*int page_dir_size = PGSIZE;
+        int vpage_count;
+        int ppage_count;
+
+        int i, j, p = 0;
+        for (i = 0; i < vpage_count; i++)
+        {
+            // add each virtual page to page_dir
+            page_dir[i] = &page_dir[page_dir_size + (i * PGSIZE)];
+            pde_t* vptr = page_dir[i];
+
+            // add each physical page to each virtual page
+            for (j = 0; j < PGSIZE; j++)
+            {
+                if (p >= ppage_count) { break; }
+
+                vptr[j] = &page_dir[(page_dir_size + (vpage_count * PGSIZE)) + (p * PGSIZE)];
+
+                p++;
+            }
+        }*/
 }
 
 
@@ -240,15 +265,15 @@ static int get_bit_at_index(char* bitmap, int index)
 // ---------------------------------------------------------------------------------------------------------------------
 
 
-void update_pbitmap(int index){
+void update_pbitmap(int index) {
     pthread_mutex_lock(&pbitmap_lock);
     pbitmap[index] = !pbitmap[index];
     pthread_mutex_unlock(&pbitmap_lock);
 }
 
-void update_vbitmap(int index){
+void update_vbitmap(int index) {
     pthread_mutex_lock(&vbitmap_lock);
-    vbitmap[index] = !pbitmap[index];
+    vbitmap[index] = !vbitmap[index];
     pthread_mutex_unlock(&vbitmap_lock);
 }
 
@@ -264,7 +289,8 @@ page_map(pde_t* pgdir, void* va, void* pa)
 
     /*HINT: Similar to translate(), find the page directory (1st level)
     and page table (2nd-level) indices. If no mapping exists, set the
-    virtual to physical mapping */
+    virtual to physical mapping*/
+    
     pte_t addr = (pte_t)va;
     int offset_bits = (int)ceil(log2(PGSIZE));
     //int second_bits = min((32 - offset_bits) / 2, offset_bits);
@@ -283,14 +309,43 @@ page_map(pde_t* pgdir, void* va, void* pa)
         pgdir[offset_bits] = *page;
     }
 
-    
-    ((pte_t *) pgdir[offset_bits])[second_bits] = (pte_t)pa;
+
+    ((pte_t*)pgdir[offset_bits])[second_bits] = (pte_t)pa;
     pthread_mutex_unlock(&pt_lock);
     //unlock call
 
     //need to check TLB and update insert checkTLB call
 
+    
+
     return 0;
+}
+
+// preload mapping for testing
+int preload()
+{
+    // add to page tables
+    // ** need to calculate page_dir_size ** assume for now = PGSIZE
+    int page_dir_size = PGSIZE;
+
+    // assuming vpages and ppages are located within physical mem
+    int i, j, p = 0;
+    for (i = 0; i < vpage_count; i++)
+    {
+        // add each virtual page to page_dir
+        page_dir[i] = &physical_mem[i * PGSIZE];
+        pde_t* vptr = page_dir[i];
+
+        // add each physical page to each virtual page
+        for (j = 0; j < PGSIZE; j++)
+        {
+            if (p >= ppage_count) { break; }
+
+            vptr[j] = &physical_mem[((vpage_count * PGSIZE)) + (p * PGSIZE)];
+
+            p++;
+        }
+    }
 }
 
 
@@ -309,54 +364,54 @@ void* get_next_avail(int num_pages) {
     //should we throw in a lock here??? why not
     pthread_mutex_lock(&vbitmap_lock);
     for (i = 0; i < page_count; i++) {
-        if (vbitmap[i] == 0){
-                //printf("0\n");
-                zero = 0;
-                temp--;
-                arr[index] = i;
-                index++;
+        if (vbitmap[i] == 0) {
+            //printf("0\n");
+            zero = 0;
+            temp--;
+            arr[index] = i;
+            index++;
         }
-        else{
+        else {
             //printf("1\n");
             temp = num_pages;
             index = 0;
             zero = 1;
         }
-        if (temp == 0){
+        if (temp == 0) {
             break;
         }
-    }    
-    pthread_mutex_unlock(&vbitmap_lock);
-    if(temp == 0){
-        return (void*) arr;
     }
-    else{ 
+    pthread_mutex_unlock(&vbitmap_lock);
+    if (temp == 0) {
+        return (void*)arr;
+    }
+    else {
         return NULL;
     }
 }
 
-int* get_avail_phys(int count){
+int* get_avail_phys(int count) {
     int* arr = malloc(page_count * sizeof(int));
     int temp = count;
     int i;
     int index = 0;
     pthread_mutex_lock(&pbitmap_lock);
     for (i = 0; i < page_count; i++) {
-        if (pbitmap[i] == 0){
+        if (pbitmap[i] == 0) {
             arr[index] = i;
             index++;
         }
-        if (count == 0){
+        if (count == 0) {
             break;
         }
-    }    
+    }
     pthread_mutex_unlock(&pbitmap_lock);
-        if (count == 0){
-            return arr;
-        }
-        else{
-            return NULL;
-        }
+    if (count == 0) {
+        return arr;
+    }
+    else {
+        return NULL;
+    }
 }
 
 
@@ -388,17 +443,17 @@ void* a_malloc(unsigned int num_bytes) {
     }
 
     //next[0] = vpage number, next[1] = physical page number
-    int num_pages = (int) ceil(num_bytes/PGSIZE);
-    
+    int num_pages = (int)ceil(num_bytes / PGSIZE);
+
     //getting the available CONSECUTIVE vpage entries 
     int* next_vp = get_next_avail(num_pages);
     if (next_vp == NULL) {
         return NULL;
     }
-    
+
     //getting the available physical pages (doesn't have to be consecutive)
     int* next_pp = get_avail_phys(page_count);
-    if (next_pp == NULL){
+    if (next_pp == NULL) {
         return NULL;
     }
     //need to figure out how many entries in a page
@@ -412,6 +467,8 @@ void* a_malloc(unsigned int num_bytes) {
     unsigned int vaddr = (vpn * (1 << 32)) + (ppn * (1 << (32 - front_bits))) + off;
 
     void* vpointer = vaddr;
+
+    page_map(page_dir, vpointer, next_pp);
     return vpointer;
 }
 
@@ -492,31 +549,14 @@ void mat_mult(void* mat1, void* mat2, int size, void* answer) {
 
 }
 
-/* TESTING*/
-int main()
+//* TESTING
+main()
 {
-    int* temp = a_malloc(10*sizeof(int));
-    /*int i;
-	for(i = 0; i < 10; i++)
-		printf("0x%x\n", temp[i]);
-	*/
-	printf("%x\n", temp);
-	printf("%lf\n", temp);
-	/*
-	page_count = 10;
+    void* a = a_malloc(400000);
+    printf("allocated 400000 bytes\n");
+
     int i;
-    for(i = 0; i < 10; i++){
-        if(i >= 5 && i <=8){
-            vbitmap[i] = 0;
-        }
-        else{
-            vbitmap[i] = 1;
-        }
-    }
-
-    int* arr = get_next_avail(3);
-    */
-	return 0;
-
-}
-/* */
+    void* v;// = &i;
+    put_value(a, v, 3);
+    printf("put_value 3 into void* a\n");
+}//*/
