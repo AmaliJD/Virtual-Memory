@@ -22,7 +22,7 @@ void set_physical_mem() {
 
     //not sure what type to set physical mem to so i have it is
     physical_mem = (unsigned char*)malloc(MEMSIZE);
-    page_dir = (pde_t*)malloc(vpage_count);
+    page_dir = (pde_t*)malloc(ptable_count * sizeof(pde_t));
     vbitmap = (valid_bit*)malloc(vpage_count);
     pbitmap = (valid_bit*)malloc(page_count);
     //HINT: Also calculate the number of physical and virtual pages and allocate
@@ -38,7 +38,6 @@ void set_physical_mem() {
     sleep(1);
 
     tlb_store.miss_count = 0;
-    //preload(); // for testing
 }
 
 
@@ -317,73 +316,32 @@ page_map(pde_t* pgdir, void* va, void* pa)
     return 0;
 }
 
-// preload mapping for testing
-int preload()
-{
-    // add to page tables
-    // ** need to calculate page_dir_size ** assume for now = PGSIZE
-    int page_dir_size = PGSIZE;
-
-    // assuming vpages and ppages are located within physical mem
-    int i, j, p = 0;
-    for (i = 0; i < vpage_count; i++)
-    {
-        // add each virtual page to page_dir
-        page_dir[i] = &physical_mem[i * PGSIZE];
-        pde_t* vptr = page_dir[i];
-
-        // add each physical page to each virtual page
-        for (j = 0; j < PGSIZE; j++)
-        {
-            if (p >= ppage_count) { break; }
-
-            vptr[j] = &physical_mem[((vpage_count * PGSIZE)) + (p * PGSIZE)];
-
-            p++;
-        }
-    }
-}
-
-
 /*Function that gets the next available page and returns respective index*/
-void* get_next_avail(int num_pages) {
+void get_next_avail(int num_pages) {
 
     //Use virtual address bitmap to find the next free page
     /*
     logic: simply iterate thru the pagedir bitmap and find the first 0 and return starting address for that page???
     */
-    int index = 0;
+    int index = -1;
     int i = 0;
     int temp = num_pages;
     int* arr = malloc(page_count * sizeof(int));
     int zero = 1;
-    //should we throw in a lock here??? why not
     pthread_mutex_lock(&vbitmap_lock);
-    for (i = 0; i < page_count; i++) {
+    for (i = 0; i < vpage_count; i++) {
         if (vbitmap[i] == 0) {
-            //printf("0\n");
-            zero = 0;
-            temp--;
-            arr[index] = i;
-            index++;
-        }
-        else {
-            //printf("1\n");
-            temp = num_pages;
-            index = 0;
-            zero = 1;
-        }
-        if (temp == 0) {
+            index = i;
             break;
         }
     }
     pthread_mutex_unlock(&vbitmap_lock);
-    if (temp == 0) {
-        return (void*)arr;
-    }
-    else {
+    //should we throw in a lock here??? why not
+    if (index > -1)
+        return &index;
+    else
         return NULL;
-    }
+
 }
 
 int* get_avail_phys(int count) {
@@ -396,13 +354,14 @@ int* get_avail_phys(int count) {
         if (pbitmap[i] == 0) {
             arr[index] = i;
             index++;
+            temp--;
         }
-        if (count == 0) {
+        if (temp == 0) {
             break;
         }
     }
     pthread_mutex_unlock(&pbitmap_lock);
-    if (count == 0) {
+    if (temp == 0) {
         return arr;
     }
     else {
@@ -441,17 +400,23 @@ void* a_malloc(unsigned int num_bytes) {
     //next[0] = vpage number, next[1] = physical page number
     int num_pages = (int)ceil(num_bytes / PGSIZE);
 
+    printf("a_mallocing...\n");
+
     //getting the available CONSECUTIVE vpage entries 
     int* next_vp = get_next_avail(num_pages);
     if (next_vp == NULL) {
+        puts("null_vp");
         return NULL;
     }
+    printf("\tnext vp: %d\n", *next_vp);
 
     //getting the available physical pages (doesn't have to be consecutive)
     int* next_pp = get_avail_phys(page_count);
     if (next_pp == NULL) {
+        puts("null_pp");
         return NULL;
     }
+    printf("\tnext pp: %d\n", *next_pp);
     //need to figure out how many entries in a page
     //page_dir[next[0]] = (pde_t*)malloc(PGSIZE);
 
@@ -467,7 +432,7 @@ void* a_malloc(unsigned int num_bytes) {
 
     page_map(page_dir, vpointer, next_pp);
     */
-
+    
     void* vpointer = NULL;
 
     //int n;
@@ -475,17 +440,23 @@ void* a_malloc(unsigned int num_bytes) {
     //{
         unsigned int off = 0; // assuming new page per a_malloc
 
-        unsigned int vpn1 = next_vp[1] % PGSIZE;
-
-        unsigned int vpn0 = next_vp[1] / PGSIZE;
+        unsigned int vpn1 = *next_vp % PGSIZE;
+        printf("\tvpn1: %d\n", vpn1);
         
-        unsigned int vaddr = (vpn0 * (1 << 31)) + (vpn1 * (1 << (31 - front_bits))) + off;
-
+        unsigned int vpn0 = *next_vp / PGSIZE;
+        printf("\tvpn0: %d\n", vpn0);
+        
+        unsigned long vaddr = (vpn0 * (1 << 31)) + (vpn1 * (1 << (31 - front_bits))) + off;
+        
         vpointer = vaddr;
-        page_map(page_dir, vpointer, next_pp);
+        printf("\tvirtual address: %lx\n", vaddr);
+
+        unsigned long paddr = &physical_mem[(*next_pp * PGSIZE)];
+        void* ppointer = paddr;
+        page_map(page_dir, vpointer, ppointer);
+        printf("\tphysical address: %lx\n", paddr);
     //}
 
-        printf("\tmallocing...\n\tvirtual address: %lx\n\tphysical address: lx\n", vpointer, next_pp);
         sleep(1);
 
     return vpointer;
@@ -572,6 +543,34 @@ void mat_mult(void* mat1, void* mat2, int size, void* answer) {
 
 
 }
+
+/*
+// preload mapping for testing
+int preload()
+{
+    // add to page tables
+    // ** need to calculate page_dir_size ** assume for now = PGSIZE
+    int page_dir_size = PGSIZE;
+
+    // assuming vpages and ppages are located within physical mem
+    int i, j, p = 0;
+    for (i = 0; i < vpage_count; i++)
+    {
+        // add each virtual page to page_dir
+        page_dir[i] = &physical_mem[i * PGSIZE];
+        pde_t* vptr = page_dir[i];
+
+        // add each physical page to each virtual page
+        for (j = 0; j < PGSIZE; j++)
+        {
+            if (p >= ppage_count) { break; }
+
+            vptr[j] = &physical_mem[((vpage_count * PGSIZE)) + (p * PGSIZE)];
+
+            p++;
+        }
+    }
+}*/
 
 //* TESTING
 main()
