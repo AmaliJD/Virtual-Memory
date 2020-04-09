@@ -9,7 +9,7 @@ void set_physical_mem() {
     //Allocate physical memory using mmap or malloc; this is the total size of
     //your memory you are simulating
 
-    int num_pages = MEMSIZE / PGSIZE;
+    //int num_pages = MEMSIZE / PGSIZE;
     int num_entries_per_page = PGSIZE / sizeof(pte_t);
     double ob = log10(PGSIZE) / log10(2);
     off_bits = (int)ceil(ob);
@@ -17,7 +17,8 @@ void set_physical_mem() {
     front_bits = 32 - mid_bits - off_bits;
 
     ppage_count = 1 << mid_bits;
-    vpage_count = (ppage_count * sizeof(pte_t)) / PGSIZE;
+    ptable_count = (ppage_count * sizeof(pte_t)) / PGSIZE;
+    vpage_count = ppage_count; //idk this one yet
 
     //not sure what type to set physical mem to so i have it is
     physical_mem = (unsigned char*)malloc(MEMSIZE);
@@ -37,7 +38,7 @@ void set_physical_mem() {
     sleep(1);
 
     tlb_store.miss_count = 0;
-    preload();
+    //preload(); // for testing
 }
 
 
@@ -142,15 +143,15 @@ pte_t* translate(pde_t* pgdir, void* va) {
     if (paddr == NULL)
     {
         unsigned int vaddr = (unsigned int)va;
-        unsigned int vpn = get_top_bits(vaddr, front_bits);
-        unsigned int ppn = get_mid_bits(vaddr, mid_bits, off_bits);
+        unsigned int vpn0 = get_top_bits(vaddr, front_bits);
+        unsigned int vpn1 = get_mid_bits(vaddr, mid_bits, off_bits);
         unsigned int off = get_end_bits(vaddr, off_bits);
 
         printf("\tTLB miss: translating address...\n");
         printf("\tpage directory: %lx\n", pgdir);
-        pte_t* outer = pgdir[vpn];
-        printf("\tvirtual page addr: %lx\n", outer);
-        pte_t* inner = outer[ppn];
+        pte_t* outer = pgdir[vpn0];
+        printf("\tpage table addr: %lx\n", outer);
+        pte_t* inner = outer[vpn1];
         printf("\tphysical page addr: %lx\n", inner);
         paddr = &inner[off];
         printf("\tphysical address: %lx\n", paddr);
@@ -356,6 +357,7 @@ void* get_next_avail(int num_pages) {
     int temp = num_pages;
     int* arr = malloc(page_count * sizeof(int));
     int zero = 1;
+
     //should we throw in a lock here??? why not
     pthread_mutex_lock(&vbitmap_lock);
     for (i = 0; i < page_count; i++) {
@@ -454,16 +456,33 @@ void* a_malloc(unsigned int num_bytes) {
     //need to figure out how many entries in a page
     //page_dir[next[0]] = (pde_t*)malloc(PGSIZE);
 
+    
     //having issues working out how to handle vaddrs for malloc calls that require multiple pages
-    unsigned int vpn = next_vp[0]; // index of outerpage
-    unsigned int ppn = next_vp[1]; // index of innerpage
-    //unsigned int off = num_bytes;
+    /*
+    unsigned int vpn0 = next_vp[0]; // index of outerpage
+    unsigned int vpn1 = next_vp[1]; // index of innerpage
     unsigned int off = 0; // assuming new page per a_malloc
-    unsigned int vaddr = (vpn * (1 << 32)) + (ppn * (1 << (32 - front_bits))) + off;
+    unsigned int vaddr = (vpn0 * (1 << 32)) + (vpn1 * (1 << (32 - front_bits))) + off;
 
     void* vpointer = vaddr;
 
     page_map(page_dir, vpointer, next_pp);
+    */
+    int n;
+    for (n = num_pages; n > 0; n--)
+    {
+        unsigned int off = 0; // assuming new page per a_malloc
+
+        unsigned int vpn1 = next_vp % PGSIZE;
+
+        unsigned int vpn0 = next_vp / PGSIZE;
+        
+        unsigned int vaddr = (vpn0 * (1 << 31)) + (vpn1 * (1 << (31 - front_bits))) + off;
+
+        void* vpointer = vaddr;
+        page_map(page_dir, vpointer, next_pp);
+    }
+
     return vpointer;
 }
 
