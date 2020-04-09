@@ -31,7 +31,7 @@ void set_physical_mem() {
     printf("Off: %d\nMid: %d\nTop: %d\n\n", off_bits, mid_bits, front_bits);
     sleep(1);
 
-    printf("ppage_count: %d\nvpage_count: %d\n\n", ppage_count, vpage_count);
+    printf("ppage_count: %d\nptable_count: %d\n\n", ppage_count, ptable_count);
     sleep(1);
 
     printf("physical_mem: %lx\npage_dir: %lx\n\n", physical_mem, page_dir);
@@ -357,7 +357,6 @@ void* get_next_avail(int num_pages) {
     int temp = num_pages;
     int* arr = malloc(page_count * sizeof(int));
     int zero = 1;
-
     //should we throw in a lock here??? why not
     pthread_mutex_lock(&vbitmap_lock);
     for (i = 0; i < page_count; i++) {
@@ -468,20 +467,26 @@ void* a_malloc(unsigned int num_bytes) {
 
     page_map(page_dir, vpointer, next_pp);
     */
-    int n;
-    for (n = num_pages; n > 0; n--)
-    {
+
+    void* vpointer = NULL;
+
+    //int n;
+    //for (n = num_pages; n > 0; n--)
+    //{
         unsigned int off = 0; // assuming new page per a_malloc
 
-        unsigned int vpn1 = next_vp % PGSIZE;
+        unsigned int vpn1 = next_vp[1] % PGSIZE;
 
-        unsigned int vpn0 = next_vp / PGSIZE;
+        unsigned int vpn0 = next_vp[1] / PGSIZE;
         
         unsigned int vaddr = (vpn0 * (1 << 31)) + (vpn1 * (1 << (31 - front_bits))) + off;
 
-        void* vpointer = vaddr;
+        vpointer = vaddr;
         page_map(page_dir, vpointer, next_pp);
-    }
+    //}
+
+        printf("\tmallocing...\n\tvirtual address: %lx\n\tphysical address: lx\n", vpointer, next_pp);
+        sleep(1);
 
     return vpointer;
 }
@@ -572,7 +577,7 @@ void mat_mult(void* mat1, void* mat2, int size, void* answer) {
 main()
 {
     void* a = a_malloc(sizeof(int));
-    printf("\n\nallocated %d bytes to void* a\n", sizeof(int));
+    printf("allocated %d bytes to void* a\n", sizeof(int));
 
     int i = 3;
     printf("\nput_value %d into void* a\n", i);

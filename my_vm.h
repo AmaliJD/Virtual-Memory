@@ -63,6 +63,7 @@ int vpage_count;
 int ppage_count;
 int page_entries;
 int page_count = (int)MEMSIZE / PGSIZE;
+int ptable_count;
 
 
 valid_bit* vbitmap;
