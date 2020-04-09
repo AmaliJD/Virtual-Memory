@@ -280,7 +280,7 @@ page_map(pde_t* pgdir, void* va, void* pa)
     pthread_mutex_lock(&pt_lock);
     if (!pgdir[offset_bits]) {
         pte_t* page = malloc(PGSIZE / sizeof(pte_t));
-        pgdir[offset_bits] = *page;
+        pgdir[offset_bits] = (pte_t) page;
     }
 
     
@@ -301,38 +301,26 @@ void* get_next_avail(int num_pages) {
     /*
     logic: simply iterate thru the pagedir bitmap and find the first 0 and return starting address for that page???
     */
-    int index = 0;
+    int index = -1;
     int i = 0;
     int temp = num_pages;
     int* arr = malloc(page_count * sizeof(int));
     int zero = 1;
-    //should we throw in a lock here??? why not
     pthread_mutex_lock(&vbitmap_lock);
     for (i = 0; i < page_count; i++) {
         if (vbitmap[i] == 0){
-                //printf("0\n");
-                zero = 0;
-                temp--;
-                arr[index] = i;
-                index++;
-        }
-        else{
-            //printf("1\n");
-            temp = num_pages;
-            index = 0;
-            zero = 1;
-        }
-        if (temp == 0){
+            index = i;
             break;
+
         }
     }    
     pthread_mutex_unlock(&vbitmap_lock);
-    if(temp == 0){
-        return (void*) arr;
-    }
-    else{ 
+    //should we throw in a lock here??? why not
+   if (index > -1)
+        return (void * ) index;
+    else
         return NULL;
-    }
+    
 }
 
 int* get_avail_phys(int count){
@@ -345,13 +333,14 @@ int* get_avail_phys(int count){
         if (pbitmap[i] == 0){
             arr[index] = i;
             index++;
+            temp--;
         }
-        if (count == 0){
+        if (temp == 0){
             break;
         }
     }    
     pthread_mutex_unlock(&pbitmap_lock);
-        if (count == 0){
+        if (temp == 0){
             return arr;
         }
         else{
@@ -391,7 +380,7 @@ void* a_malloc(unsigned int num_bytes) {
     int num_pages = (int) ceil(num_bytes/PGSIZE);
     
     //getting the available CONSECUTIVE vpage entries 
-    int* next_vp = get_next_avail(num_pages);
+    int next_vp = get_next_avail(num_pages);
     if (next_vp == NULL) {
         return NULL;
     }
