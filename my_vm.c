@@ -355,9 +355,6 @@ void* get_next_avail(int num_pages) {
     */
     int index = -1;
     int i = 0;
-    int temp = num_pages;
-    int* arr = malloc(page_count * sizeof(int));
-    int zero = 1;
     pthread_mutex_lock(&vbitmap_lock);
     for (i = 0; i < vpage_count; i++) {
         if (vbitmap[i] == 0) {
@@ -373,6 +370,56 @@ void* get_next_avail(int num_pages) {
         return &index;
     else
         return NULL;
+
+}
+
+void* get_avail_phys(int count) {
+    int index = -1;
+    int i = 0;
+    pthread_mutex_lock(&pbitmap_lock);
+    for (i = 0; i < page_count; i++) {
+        if (pbitmap[i] == 0) {
+            index = i;
+            pbitmap[i] = 1;
+            break;
+        }
+    }
+    pthread_mutex_unlock(&pbitmap_lock);
+    //should we throw in a lock here??? why not
+
+    if (index > -1)
+        return &index;
+    else
+        return NULL;
+}
+/*
+
+void* get_next_avail(int num_pages) {
+
+    //Use virtual address bitmap to find the next free page
+    /*
+    logic: simply iterate thru the pagedir bitmap and find the first 0 and return starting address for that page???
+    
+    int index = -1;
+    int i = 0;
+    int temp = num_pages;
+    int* arr = malloc(page_count * sizeof(int));
+    int zero = 1;
+    pthread_mutex_lock(&vbitmap_lock);
+    for (i = 0; i < vpage_count; i++) {
+        if (vbitmap[i] == 0) {
+            index = i;
+            vbitmap[i] = 1;
+            break;
+        }
+    }
+    pthread_mutex_unlock(&vbitmap_lock);
+    //should we throw in a lock here??? why not
+
+    if (index > -1)
+    return &index;
+    else
+    return NULL;
 
 }
 
@@ -400,7 +447,7 @@ void* get_avail_phys(int count) {
     else {
         return NULL;
     }
-}
+}*/
 
 
 /* Function responsible for allocating pages
