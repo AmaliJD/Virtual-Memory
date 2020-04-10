@@ -29,13 +29,13 @@ void set_physical_mem() {
     //virtual and physical bitmaps and initialize them
 
     printf("Off: %d\nMid: %d\nTop: %d\n\n", off_bits, mid_bits, front_bits);
-    sleep(1);
+    //sleep(1);
 
     printf("ppage_count: %d\nptable_count: %d\n\n", ppage_count, ptable_count);
-    sleep(1);
+    //sleep(1);
 
     printf("physical_mem: %lx\npage_dir: %lx\n\n", physical_mem, page_dir);
-    sleep(1);
+    //sleep(1);
 
     tlb_store.miss_count = 0;
 }
@@ -53,11 +53,22 @@ add_TLB(void* va, pte_t* pa)
     pthread_mutex_lock(&tlb_lock);
     tlb_store.miss_count += 1;
 
-    int i = 0;
-    while (tlb_store.page_dir_nums[i] != 0)
+    int i = 0, age = -1, oldest = 0;
+    while (tlb_store.physical_addrs[i] != 0)
     {
-        i++;
         if (i >= TLB_ENTRIES) { break; }
+        if (tlb_store.age[i] > age)
+        {
+            age = tlb_store.age[i];
+            oldest = i;
+        }
+        i++;
+    }
+
+    if (i >= TLB_ENTRIES)
+    {
+        printf("\tNot enough space in TLB. Evicting oldest entry\n");
+        i = oldest;
     }
 
     unsigned int entry_value = get_top_bits((unsigned int)va, front_bits + mid_bits);
@@ -65,6 +76,18 @@ add_TLB(void* va, pte_t* pa)
 
     tlb_store.page_dir_nums[i] = entry_value;
     tlb_store.physical_addrs[i] = pa_value;
+    tlb_store.age[i] = 0;
+
+    int j;
+    for (j = 0; j < TLB_ENTRIES; j++)
+    {
+        if (tlb_store.physical_addrs[j] != 0)
+        {
+            tlb_store.age[j] += 1;
+            printf("\tage[%d]: %d\n", j, tlb_store.age[j]);
+        }
+    }
+    
     pthread_mutex_unlock(&tlb_lock);
 
     return 1;
@@ -154,7 +177,7 @@ pte_t* translate(pde_t* pgdir, void* va) {
         printf("\tphysical page addr: %lx\n", inner);
         paddr = &inner[off];
         printf("\tphysical address: %lx\n", paddr);
-        sleep(1);
+        //sleep(1);
 
         add_TLB(va, paddr);
     }
@@ -162,7 +185,7 @@ pte_t* translate(pde_t* pgdir, void* va) {
     {
         printf("\tTLB hit\n");
         printf("\tphysical address: %lx\n", paddr);
-        sleep(1);
+        //sleep(1);
     }
 
     return paddr;
@@ -342,6 +365,9 @@ page_map(pde_t* pgdir, void* va, void* pa)
     ((pte_t*)pgdir[offset_bits])[second_bits] = (pte_t)pa;
     pthread_mutex_unlock(&pt_lock);
     //unlock call
+
+    printf("\tpage_map outer: %lx\n", pgdir[offset_bits]);
+    printf("\tpage_map inner: %lx\n", ((pte_t*)pgdir[offset_bits])[second_bits]);
 
     return 0;
 }
@@ -541,7 +567,7 @@ void* a_malloc(unsigned int num_bytes) {
         page_map(page_dir, vpointer, ppointer);
     //}
 
-        sleep(1);
+        //sleep(1);
 
     return vpointer;
 }
@@ -562,8 +588,46 @@ void a_free(void* va, int size) {
          2. get the page dir index and then free that
          3. check if value is in TLB by using page dir index and free if necessary
      */
+    printf("\tfreeing...\n");
+    
+    unsigned int vaddr = (unsigned int)va;
+    int vpn0 = get_top_bits(vaddr, front_bits);
+    int vpn1 = get_mid_bits(vaddr, mid_bits, off_bits);
+    pde_t* pa = translate(page_dir, va);
+    unsigned int paddr = (unsigned int)pa;
 
+    int vindex = (vpn0 * PGSIZE) + vpn1;
+    int pindex = (paddr - (unsigned int)physical_mem) / PGSIZE;
 
+    vbitmap[vindex] = 0;
+    pbitmap[pindex] = 0;
+
+    // free consecutive pages
+    int j;
+    for (j = 0; j <= size; j += PGSIZE)
+    {
+        memset(pa + (j*PGSIZE), 0, size);
+    }
+
+    unsigned int entry_value = get_top_bits(vaddr, front_bits + mid_bits);
+    if (check_TLB(va) != NULL)
+    {
+        int i = 0;
+        while (tlb_store.page_dir_nums[i] != entry_value)
+        {
+            i++;
+            if (i >= TLB_ENTRIES)
+            {
+                break;
+            }
+        }
+
+        tlb_store.page_dir_nums[i] = 0;
+        tlb_store.physical_addrs[i] = 0;
+        tlb_store.age[i] = 0;
+
+        printf("\tremoved from TLB\n");
+    }
 }
 
 
@@ -596,14 +660,16 @@ void get_value(void* va, void* val, int size) {
     //logic: simply get the physical addr, and set va to be the dereferenced value???
     pde_t* paddr = translate(page_dir, va);
     
-    /*int index = (*paddr) * (PGSIZE - 1);
+    /*
+    int index = (*paddr) * (PGSIZE - 1);
     int i;
     unsigned char* temp = (char*)malloc(size);
     //not sure if this is right but i'm just setting val[i] = phys_mem[i]
     for (i = index; i < index + PGSIZE; i++) {
         temp[i] = physical_mem[i];
     }
-    memcpy(temp, val, temp);*/
+    memcpy(temp, val, temp);
+    */
 
     memcpy(val, paddr, size);
     printf("value got = %d\n", *paddr);
@@ -646,6 +712,7 @@ main()
     get_value(a, &ii, sizeof(int));
     printf("get_value success. a = %d\n", ii);
 
+    sleep(1);
     printf("\n\n\n-------- TEST B --------\n");
     void* b = a_malloc(sizeof(int));
     printf("allocated %d bytes to void* b\n", sizeof(int));
@@ -660,6 +727,7 @@ main()
     get_value(b, &jj, sizeof(int));
     printf("get_value success. b = %d\n", jj);
 
+    sleep(1);
     printf("\n\n\n-------- TEST C --------\n");
     void* c = a_malloc(sizeof(int));
     printf("allocated %d bytes to void* c\n", sizeof(int));
@@ -674,7 +742,8 @@ main()
     get_value(c, &kk, sizeof(int));
     printf("get_value success. c = %d\n", kk);
 
-    printf("\n\n\n-------- FINAL TEST --------\n");
+    sleep(1);
+    printf("\n\n\n-------- GET A B C TEST --------\n");
     printf("getting all values of a, b, c\n");
     int A, B, C;
     get_value(a, &A, sizeof(int));
@@ -688,4 +757,38 @@ main()
     {
         printf("\nyou done goofed\n");
     }
+    else
+    {
+        printf("\nall good\n");
+    }
+
+    sleep(1);
+    printf("\n\n\n-------- TEST FREE --------\n");
+    printf("free a\n");
+    a_free(a, sizeof(int));
+    printf("free b\n");
+    a_free(b, sizeof(int));
+    printf("free c\n");
+    a_free(c, sizeof(int));
+
+    printf("getting all values of a, b, c\n");
+    get_value(a, &A, sizeof(int));
+    get_value(b, &B, sizeof(int));
+    get_value(c, &C, sizeof(int));
+    printf("Returns:  \ta = %d\tb = %d\tc = %d\n", A, B, C);
+
+    sleep(1);
+    printf("\n\n\n-------- TEST D --------\n");
+    void* d = a_malloc(sizeof(int));
+    printf("allocated %d bytes to void* d\n", sizeof(int));
+
+    int q = 100;
+    printf("\nput_value %d into void* d\n", q);
+    put_value(d, &q, sizeof(int));
+    printf("put_value success\n");
+
+    int qq;
+    printf("\nget_value from void* d\n");
+    get_value(d, &qq, sizeof(int));
+    printf("get_value success. d = %d\n", qq);
 }//*/
