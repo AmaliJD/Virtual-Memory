@@ -636,4 +636,9 @@ main()
     printf("get_value complete\n");
     printf("Expected Results:\ta = %d\tb = %d\tc = %d\n", i, j, k);
     printf("Actual Results:  \ta = %d\tb = %d\tc = %d\n", A, B, C);
+
+    if (!(A == i && B == j && C == k))
+    {
+        printf("\nyou done goofed\n");
+    }
 }//*/
