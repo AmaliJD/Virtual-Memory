@@ -443,9 +443,11 @@ void* a_malloc(unsigned int num_bytes) {
     //{
         unsigned int off = 0; // assuming new page per a_malloc
         
+        // index of inner page = virtual page number % size of page
         unsigned int vpn1 = vp % PGSIZE;
         printf("\tvpn1: %d\n", vpn1);
         
+        // index of outer page = virtual page number / size of page
         unsigned int vpn0 = vp / PGSIZE;
         printf("\tvpn0: %d\n", vpn0);
         
@@ -456,8 +458,8 @@ void* a_malloc(unsigned int num_bytes) {
 
         unsigned long paddr = &physical_mem[(pp * PGSIZE)];
         void* ppointer = paddr;
-        page_map(page_dir, vpointer, ppointer);
         printf("\tphysical address: %lx\n", paddr);
+        page_map(page_dir, vpointer, ppointer);
     //}
 
         sleep(1);
