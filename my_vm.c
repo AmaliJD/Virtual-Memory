@@ -317,7 +317,7 @@ page_map(pde_t* pgdir, void* va, void* pa)
 }
 
 /*Function that gets the next available page and returns respective index*/
-void get_next_avail(int num_pages) {
+void* get_next_avail(int num_pages) {
 
     //Use virtual address bitmap to find the next free page
     /*
@@ -337,6 +337,7 @@ void get_next_avail(int num_pages) {
     }
     pthread_mutex_unlock(&vbitmap_lock);
     //should we throw in a lock here??? why not
+    
     if (index > -1)
         return &index;
     else
@@ -344,7 +345,7 @@ void get_next_avail(int num_pages) {
 
 }
 
-int* get_avail_phys(int count) {
+void* get_avail_phys(int count) {
     int* arr = malloc(page_count * sizeof(int));
     int temp = count;
     int i;
@@ -408,6 +409,7 @@ void* a_malloc(unsigned int num_bytes) {
         puts("null_vp");
         return NULL;
     }
+    int vp = *next_vp;
     printf("\tnext vp: %d\n", *next_vp);
 
     //getting the available physical pages (doesn't have to be consecutive)
@@ -416,6 +418,7 @@ void* a_malloc(unsigned int num_bytes) {
         puts("null_pp");
         return NULL;
     }
+    int pp = *next_pp;
     printf("\tnext pp: %d\n", *next_pp);
     //need to figure out how many entries in a page
     //page_dir[next[0]] = (pde_t*)malloc(PGSIZE);
@@ -439,11 +442,11 @@ void* a_malloc(unsigned int num_bytes) {
     //for (n = num_pages; n > 0; n--)
     //{
         unsigned int off = 0; // assuming new page per a_malloc
-
-        unsigned int vpn1 = *next_vp % PGSIZE;
+        
+        unsigned int vpn1 = vp % PGSIZE;
         printf("\tvpn1: %d\n", vpn1);
         
-        unsigned int vpn0 = *next_vp / PGSIZE;
+        unsigned int vpn0 = vp / PGSIZE;
         printf("\tvpn0: %d\n", vpn0);
         
         unsigned long vaddr = (vpn0 * (1 << 31)) + (vpn1 * (1 << (31 - front_bits))) + off;
@@ -451,7 +454,7 @@ void* a_malloc(unsigned int num_bytes) {
         vpointer = vaddr;
         printf("\tvirtual address: %lx\n", vaddr);
 
-        unsigned long paddr = &physical_mem[(*next_pp * PGSIZE)];
+        unsigned long paddr = &physical_mem[(pp * PGSIZE)];
         void* ppointer = paddr;
         page_map(page_dir, vpointer, ppointer);
         printf("\tphysical address: %lx\n", paddr);
