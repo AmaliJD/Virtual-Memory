@@ -278,13 +278,14 @@ as an argument, and sets a page table entry. This function will walk the page
 directory to see if there is an existing mapping for a virtual address. If the
 virtual address is not present, then a new entry will be added
 */
+/*
 int
 page_map(pde_t* pgdir, void* va, void* pa)
 {
 
     /*HINT: Similar to translate(), find the page directory (1st level)
     and page table (2nd-level) indices. If no mapping exists, set the
-    virtual to physical mapping*/
+    virtual to physical mapping
     
     pte_t addr = (pte_t)va;
     int offset_bits = (int)ceil(log2(PGSIZE));
@@ -301,7 +302,7 @@ page_map(pde_t* pgdir, void* va, void* pa)
     pthread_mutex_lock(&pt_lock);
     if (!pgdir[offset_bits]) {
         pte_t* page = malloc(PGSIZE / sizeof(pte_t));
-        pgdir[offset_bits] = *page;
+        pgdir[offset_bits] = (pte_t * )page;
     }
 
 
@@ -312,6 +313,35 @@ page_map(pde_t* pgdir, void* va, void* pa)
     //need to check TLB and update insert checkTLB call
 
     
+
+    return 0;
+}*/
+
+int
+page_map(pde_t* pgdir, void* va, void* pa)
+{
+
+    /*HINT: Similar to translate(), find the page directory (1st level)
+    and page table (2nd-level) indices. If no mapping exists, set the
+    virtual to physical mapping*/
+
+    pte_t addr = (pte_t)va;
+    
+    unsigned int vaddr = (unsigned int)va;
+    int offset_bits = get_top_bits(vaddr, front_bits);
+    int second_bits = get_mid_bits(vaddr, mid_bits, off_bits);
+
+    //insert lock call to make threadsafe
+    pthread_mutex_lock(&pt_lock);
+    if (!pgdir[offset_bits]) {
+        pte_t* page = malloc(PGSIZE / sizeof(pte_t));
+        pgdir[offset_bits] = (pte_t * )page;
+    }
+
+
+    ((pte_t*)pgdir[offset_bits])[second_bits] = (pte_t)pa;
+    pthread_mutex_unlock(&pt_lock);
+    //unlock call
 
     return 0;
 }
@@ -549,33 +579,6 @@ void mat_mult(void* mat1, void* mat2, int size, void* answer) {
 
 }
 
-/*
-// preload mapping for testing
-int preload()
-{
-    // add to page tables
-    // ** need to calculate page_dir_size ** assume for now = PGSIZE
-    int page_dir_size = PGSIZE;
-
-    // assuming vpages and ppages are located within physical mem
-    int i, j, p = 0;
-    for (i = 0; i < vpage_count; i++)
-    {
-        // add each virtual page to page_dir
-        page_dir[i] = &physical_mem[i * PGSIZE];
-        pde_t* vptr = page_dir[i];
-
-        // add each physical page to each virtual page
-        for (j = 0; j < PGSIZE; j++)
-        {
-            if (p >= ppage_count) { break; }
-
-            vptr[j] = &physical_mem[((vpage_count * PGSIZE)) + (p * PGSIZE)];
-
-            p++;
-        }
-    }
-}*/
 
 //* TESTING
 main()
