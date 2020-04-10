@@ -362,6 +362,7 @@ void* get_next_avail(int num_pages) {
     for (i = 0; i < vpage_count; i++) {
         if (vbitmap[i] == 0) {
             index = i;
+            vbitmap[i] = 1;
             break;
         }
     }
@@ -384,6 +385,7 @@ void* get_avail_phys(int count) {
     for (i = 0; i < page_count; i++) {
         if (pbitmap[i] == 0) {
             arr[index] = i;
+            pbitmap[i] = 1;
             index++;
             temp--;
         }
@@ -436,7 +438,7 @@ void* a_malloc(unsigned int num_bytes) {
     //getting the available CONSECUTIVE vpage entries 
     int* next_vp = get_next_avail(num_pages);
     if (next_vp == NULL) {
-        puts("null_vp");
+        puts("\tERROR: cannot find next vp");
         return NULL;
     }
     int vp = *next_vp;
@@ -445,7 +447,7 @@ void* a_malloc(unsigned int num_bytes) {
     //getting the available physical pages (doesn't have to be consecutive)
     int* next_pp = get_avail_phys(page_count);
     if (next_pp == NULL) {
-        puts("null_pp");
+        puts("\tERROR: cannot find next pp");
         return NULL;
     }
     int pp = *next_pp;
@@ -583,6 +585,7 @@ void mat_mult(void* mat1, void* mat2, int size, void* answer) {
 //* TESTING
 main()
 {
+    printf("\n\n\n----- TEST A -----\n");
     void* a = a_malloc(sizeof(int));
     printf("allocated %d bytes to void* a\n", sizeof(int));
 
@@ -595,4 +598,18 @@ main()
     printf("\nget_value from void* a\n");
     get_value(a, &ii, sizeof(int));
     printf("get_value success. a = %d\n", ii);
+
+    printf("\n\n\n----- TEST B -----\n");
+    void* b = a_malloc(sizeof(int));
+    printf("allocated %d bytes to void* b\n", sizeof(int));
+
+    int j = 16;
+    printf("\nput_value %d into void* b\n", j);
+    put_value(b, &j, sizeof(int));
+    printf("put_value success\n");
+
+    int jj;
+    printf("\nget_value from void* b\n");
+    get_value(b, &jj, sizeof(int));
+    printf("get_value success. b = %d\n", jj);
 }//*/
