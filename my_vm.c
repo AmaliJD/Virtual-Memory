@@ -585,7 +585,7 @@ void mat_mult(void* mat1, void* mat2, int size, void* answer) {
 //* TESTING
 main()
 {
-    printf("\n\n\n----- TEST A -----\n");
+    printf("\n\n\n-------- TEST A --------\n");
     void* a = a_malloc(sizeof(int));
     printf("allocated %d bytes to void* a\n", sizeof(int));
 
@@ -599,7 +599,7 @@ main()
     get_value(a, &ii, sizeof(int));
     printf("get_value success. a = %d\n", ii);
 
-    printf("\n\n\n----- TEST B -----\n");
+    printf("\n\n\n-------- TEST B --------\n");
     void* b = a_malloc(sizeof(int));
     printf("allocated %d bytes to void* b\n", sizeof(int));
 
@@ -612,4 +612,28 @@ main()
     printf("\nget_value from void* b\n");
     get_value(b, &jj, sizeof(int));
     printf("get_value success. b = %d\n", jj);
+
+    printf("\n\n\n-------- TEST C --------\n");
+    void* c = a_malloc(sizeof(int));
+    printf("allocated %d bytes to void* c\n", sizeof(int));
+
+    int k = 45;
+    printf("\nput_value %d into void* c\n", k);
+    put_value(c, &k, sizeof(int));
+    printf("put_value success\n");
+
+    int kk;
+    printf("\nget_value from void* c\n");
+    get_value(c, &kk, sizeof(int));
+    printf("get_value success. c = %d\n", kk);
+
+    printf("\n\n\n-------- FINAL TEST --------\n");
+    printf("getting all values of a, b, c\n");
+    int A, B, C;
+    get_value(a, &A, sizeof(int));
+    get_value(b, &B, sizeof(int));
+    get_value(c, &C, sizeof(int));
+    printf("get_value complete\n");
+    printf("Expected Results:\ta = %d\tb = %d\tc = %d\n", i, j, k);
+    printf("Actual Results:  \ta = %d\tb = %d\tc = %d\n", A, B, C);
 }//*/
