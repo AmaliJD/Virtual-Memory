@@ -17,12 +17,12 @@ void set_physical_mem() {
 
     ppage_count = 1 << mid_bits;
     ptable_count = (ppage_count * sizeof(pte_t)) / PGSIZE;
-    vpage_count = ppage_count; //idk this one yet
+    vpage_count = MAX_MEMSIZE / PGSIZE; //idk this one yet
 
-    physical_mem = (unsigned char*)malloc(MEMSIZE);
+    physical_memory = (unsigned char*)malloc(MEMSIZE);
     page_dir = (pde_t*)malloc(ptable_count * sizeof(pde_t));
     vbitmap = (valid_bit*)malloc(vpage_count);
-    pbitmap = (valid_bit*)malloc(page_count);
+    pbitmap = (valid_bit*)malloc(ppage_count);
     //HINT: Also calculate the number of physical and virtual pages and allocate
     //virtual and physical bitmaps and initialize them
     
@@ -33,7 +33,7 @@ void set_physical_mem() {
     printf("ppage_count: %d\nptable_count: %d\n\n", ppage_count, ptable_count);
     //sleep(1);
 
-    printf("physical_mem: %lx\npage_dir: %lx\n\n", physical_mem, page_dir);
+    printf("physical_mem: %lx\npage_dir: %lx\n\n", physical_memory, page_dir);
     //sleep(1);
     //*/
 
@@ -364,7 +364,7 @@ void* get_next_avail_pp() {
     int index = -1;
     int i = 0;
     pthread_mutex_lock(&pbitmap_lock);
-    for (i = 0; i < page_count; i++) {
+    for (i = 0; i < ppage_count; i++) {
         if (pbitmap[i] == 0) {
             index = i;
             pbitmap[i] = 1;
@@ -402,7 +402,7 @@ void* a_malloc(unsigned int num_bytes) {
       3. return the physsical mem addr??? (check)
       */
 
-    if (physical_mem == NULL) {
+    if (physical_memory == NULL) {
         set_physical_mem();
     }
 
@@ -468,7 +468,7 @@ void* a_malloc(unsigned int num_bytes) {
         vpointer = vaddr;
         //printf("\tvirtual address: %lx\n", vaddr);
 
-        unsigned long paddr = &physical_mem[(pp * PGSIZE)];
+        unsigned long paddr = &physical_memory[(pp * PGSIZE)];
         void* ppointer = paddr;
         //printf("\tphysical address: %lx\n", paddr);
         page_map(page_dir, vpointer, ppointer);
@@ -515,7 +515,7 @@ void a_free(void* va, int size) {
         unsigned int paddr = (unsigned int)pa;
 
         int vindex = (vpn0 * PGSIZE) + vpn1;
-        int pindex = (paddr - (unsigned int)physical_mem) / PGSIZE;
+        int pindex = (paddr - (unsigned int)physical_memory) / PGSIZE;
 
         vbitmap[vindex] = 0;
         pbitmap[pindex] = 0;

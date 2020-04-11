@@ -52,7 +52,7 @@ struct tlb tlb_store;
 
 pde_t* page_dir;
 
-unsigned char* physical_mem = NULL;
+unsigned char* physical_memory = NULL;
 
 pthread_mutex_t pt_lock,
 vbitmap_lock,
@@ -62,7 +62,7 @@ tlb_lock;
 int vpage_count;
 int ppage_count;
 int page_entries;
-int page_count = (int)MEMSIZE / PGSIZE;
+//int page_count = (int)MEMSIZE / PGSIZE;
 int ptable_count;
 
 
@@ -76,7 +76,7 @@ unsigned int get_mid_bits(unsigned int value, int num_middle_bits, int num_lower
 int get_ppn(void*);
 pte_t* translate(pde_t* pgdir, void* va);
 int page_map(pde_t* pgdir, void* va, void* pa);
-pte_t* check_TLB(void *va, int mode);
+bool check_in_tlb(void* va);
 void put_in_tlb(void* va, void* pa);
 void* a_malloc(unsigned int num_bytes);
 void a_free(void* va, int size);
