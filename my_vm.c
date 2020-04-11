@@ -334,7 +334,7 @@ void* get_next_avail(int count) {
     */
     int index = -1;
     int i = 0;
-    int* arr = malloc((1+count) * sizeof(int));
+    int* arr = malloc((count) * sizeof(int));
     int temp = count;
     
     pthread_mutex_lock(&vbitmap_lock);
@@ -575,7 +575,7 @@ void mat_mult(void* mat1, void* mat2, int size, void* answer) {
                 int* val1 = (int *) translate(page_dir, ((int *) mat1) + i * size + k);
                 int* val2 = (int *) translate(page_dir, ((int *) mat2) + i * size + k);
 
-                *val+= val1+val2;
+                *val+= *val1+*val2;
             }
         }
 
