@@ -100,6 +100,7 @@ pte_t* check_TLB(void* va) {
 
     /* Part 2: TLB lookup code here */
     pthread_mutex_lock(&tlb_lock);
+    tlb_store.mem_accesses += 1;
     unsigned int entry_value = get_top_bits((unsigned int)va, front_bits + mid_bits);
 
     int i = 0;
@@ -126,10 +127,13 @@ pte_t* check_TLB(void* va) {
  */
 void print_TLB_missrate()
 {
-    double miss_rate = 0;
+    double miss_rate = 0.0;
     /*Part 2 Code here to calculate and print the TLB miss rate*/
     pthread_mutex_lock(&tlb_lock);
-    miss_rate = tlb_store.miss_count / tlb_store.mem_accesses;
+    if (tlb_store.mem_accesses != 0)
+    {
+        miss_rate = (double)tlb_store.miss_count / (double)tlb_store.mem_accesses;
+    }
     pthread_mutex_unlock(&tlb_lock);
 
     fprintf(stderr, "TLB miss rate %lf \n", miss_rate);
