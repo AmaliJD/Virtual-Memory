@@ -45,8 +45,7 @@ void set_physical_mem() {
  * Part 2: Add a virtual to physical page translation to the TLB.
  * Feel free to extend the function arguments or return type.
  */
-int
-add_TLB(void* va, pte_t* pa)
+int add_TLB(void* va, pte_t* pa)
 {
     pthread_mutex_lock(&tlb_lock);
     tlb_store.miss_count += 1;
@@ -97,8 +96,7 @@ add_TLB(void* va, pte_t* pa)
  * Returns the physical page address.
  * Feel free to extend this function and change the return type.
  */
-pte_t*
-check_TLB(void* va) {
+pte_t* check_TLB(void* va) {
 
     /* Part 2: TLB lookup code here */
     pthread_mutex_lock(&tlb_lock);
@@ -126,8 +124,7 @@ check_TLB(void* va) {
  * Part 2: Print TLB miss rate.
  * Feel free to extend the function arguments or return type.
  */
-void
-print_TLB_missrate()
+void print_TLB_missrate()
 {
     double miss_rate = 0;
     /*Part 2 Code here to calculate and print the TLB miss rate*/
@@ -501,14 +498,6 @@ void a_free(void* va, int size) {
     int j;
     for (j = 0; j < num_pages; j ++)
     {
-        
-        vpn1 = vpn1 + j;
-        if (vpn1 >= num_entries_per_page)
-        {
-            vpn1 = 0;
-            vpn0++;
-        }
-
         unsigned long vaddr = (vpn0 * (1 << (mid_bits + off_bits))) + (vpn1 * (1 << (off_bits)));
         //printf("\tvaddr: %lx\n", vaddr);
         //printf("\tvaddress: %lx\n", vaddress);
@@ -542,6 +531,13 @@ void a_free(void* va, int size) {
 
             //printf("\tremoved from TLB\n");
         }
+
+        vpn1++;
+        if (vpn1 >= num_entries_per_page)
+        {
+            vpn1 = 0;
+            vpn0++;
+        }
     }
 }
 
@@ -557,9 +553,37 @@ void put_value(void* va, void* val, int size) {
      * function.
      */
 
-    pde_t* paddr = translate(page_dir, va);
+    int num_pages = (int)ceil((double)size / (double)PGSIZE);
+    unsigned long vaddress = (unsigned long)va;
+    unsigned int vpn0 = get_top_bits(vaddress, front_bits);
+    unsigned int vpn1 = get_mid_bits(vaddress, mid_bits, off_bits);
+
+    int size_left = size;
+
     pthread_mutex_lock(&phys_mem_lock);
-    memcpy(paddr, val, size);
+    int j;
+    for (j = 0; j < num_pages; j++)
+    {
+        unsigned long vaddr = (vpn0 * (1 << (mid_bits + off_bits))) + (vpn1 * (1 << (off_bits)));
+        pde_t* paddr = translate(page_dir, (void*)vaddr);
+
+        int size_cpy = size_left;
+        if (size_left > size)
+        {
+            size_cpy = PGSIZE;
+        }
+
+        memcpy(paddr, (val + (j * PGSIZE)), size_cpy);
+
+        size_left -= PGSIZE;
+
+        vpn1++;
+        if (vpn1 >= num_entries_per_page)
+        {
+            vpn1 = 0;
+            vpn0++;
+        }
+    }
     pthread_mutex_unlock(&phys_mem_lock);
 }
 
@@ -570,10 +594,37 @@ void get_value(void* va, void* val, int size) {
     /* HINT: put the values pointed to by "va" inside the physical memory at given
     * "val" address. Assume you can access "val" directly by derefencing them.
     */
-    
-    pde_t* paddr = translate(page_dir, va);
+    int num_pages = (int)ceil((double)size / (double)PGSIZE);
+    unsigned long vaddress = (unsigned long)va;
+    unsigned int vpn0 = get_top_bits(vaddress, front_bits);
+    unsigned int vpn1 = get_mid_bits(vaddress, mid_bits, off_bits);
+
+    int size_left = size;
+
     pthread_mutex_lock(&phys_mem_lock);
-    memcpy(val, paddr, size);
+    int j;
+    for (j = 0; j < num_pages; j++)
+    {
+        unsigned long vaddr = (vpn0 * (1 << (mid_bits + off_bits))) + (vpn1 * (1 << (off_bits)));
+        pde_t* paddr = translate(page_dir, (void*)vaddr);
+
+        int size_cpy = size_left;
+        if (size_left > size)
+        {
+            size_cpy = PGSIZE;
+        }
+
+        memcpy((val + (j*PGSIZE)), paddr, size_cpy);
+
+        size_left -= PGSIZE;
+
+        vpn1++;
+        if (vpn1 >= num_entries_per_page)
+        {
+            vpn1 = 0;
+            vpn0++;
+        }
+    }
     pthread_mutex_unlock(&phys_mem_lock);
 }
 
@@ -601,11 +652,10 @@ void mat_mult(void* mat1, void* mat2, int size, void* answer) {
             for (k = 0; k < size; k++) {
                 int* val1 = (int*)translate(page_dir, ((int*)mat1) + i * size + k);
                 int* val2 = (int*)translate(page_dir, ((int*)mat2) + i * size + k);
-				//printf("\tanswer[%d][%d]: val1: %d, val2: %d, sum: %d, val: %d\n",i, k, *val1, *val2, *val1+*val2, *val);
+
                 *val += *val1 * *val2;
             }
         }
 
     }
-
 }
