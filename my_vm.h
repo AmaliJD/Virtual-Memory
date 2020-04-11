@@ -52,7 +52,7 @@ struct tlb tlb_store;
 
 pde_t* page_dir;
 
-unsigned char* physical_memory = NULL;
+unsigned char* physical_mem;
 
 pthread_mutex_t pt_lock,
 vbitmap_lock,

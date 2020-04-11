@@ -19,7 +19,7 @@ void set_physical_mem() {
     ptable_count = (ppage_count * sizeof(pte_t)) / PGSIZE;
     vpage_count = MAX_MEMSIZE / PGSIZE; //idk this one yet
 
-    physical_memory = (unsigned char*)malloc(MEMSIZE);
+    physical_mem = (unsigned char*)malloc(MEMSIZE);
     page_dir = (pde_t*)malloc(ptable_count * sizeof(pde_t));
     vbitmap = (valid_bit*)malloc(vpage_count);
     pbitmap = (valid_bit*)malloc(ppage_count);
@@ -33,7 +33,7 @@ void set_physical_mem() {
     printf("ppage_count: %d\nptable_count: %d\n\n", ppage_count, ptable_count);
     //sleep(1);
 
-    printf("physical_mem: %lx\npage_dir: %lx\n\n", physical_memory, page_dir);
+    printf("physical_mem: %lx\npage_dir: %lx\n\n", physical_mem, page_dir);
     //sleep(1);
     //*/
 
@@ -402,7 +402,7 @@ void* a_malloc(unsigned int num_bytes) {
       3. return the physsical mem addr??? (check)
       */
 
-    if (physical_memory == NULL) {
+    if (physical_mem == NULL) {
         set_physical_mem();
     }
 
@@ -468,7 +468,7 @@ void* a_malloc(unsigned int num_bytes) {
         vpointer = vaddr;
         //printf("\tvirtual address: %lx\n", vaddr);
 
-        unsigned long paddr = &physical_memory[(pp * PGSIZE)];
+        unsigned long paddr = &physical_mem[(pp * PGSIZE)];
         void* ppointer = paddr;
         //printf("\tphysical address: %lx\n", paddr);
         page_map(page_dir, vpointer, ppointer);
@@ -515,7 +515,7 @@ void a_free(void* va, int size) {
         unsigned int paddr = (unsigned int)pa;
 
         int vindex = (vpn0 * PGSIZE) + vpn1;
-        int pindex = (paddr - (unsigned int)physical_memory) / PGSIZE;
+        int pindex = (paddr - (unsigned int)physical_mem) / PGSIZE;
 
         vbitmap[vindex] = 0;
         pbitmap[pindex] = 0;
