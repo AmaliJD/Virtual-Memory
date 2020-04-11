@@ -1,6 +1,7 @@
 #include "my_vm.h"
 
 int off_bits = 0, mid_bits = 0, front_bits = 0;
+int num_entries_per_page = PGSIZE / sizeof(pte_t);
 /*
 Function responsible for allocating and setting your physical memory
 */
@@ -9,7 +10,6 @@ void set_physical_mem() {
     //Allocate physical memory using mmap or malloc; this is the total size of
     //your memory you are simulating
 
-    int num_entries_per_page = PGSIZE / sizeof(pte_t);
     double ob = log10(PGSIZE) / log10(2);
     off_bits = (int)ceil(ob);
     mid_bits = (32 - off_bits) / 2;
@@ -159,7 +159,8 @@ pte_t* translate(pde_t* pgdir, void* va) {
         unsigned int vpn1 = get_mid_bits(vaddr, mid_bits, off_bits);
         unsigned int off = get_end_bits(vaddr, off_bits);
 
-        //printf("\tTLB miss: translating address...\n");
+        printf("\tTLB miss: translating address...\n");
+        //printf("\tvirtual address: %lx\n", vaddr);
         //printf("\tpage directory: %lx\n", pgdir);
         pte_t* outer = pgdir[vpn0];
         //printf("\tpage table addr: %lx\n", outer);
@@ -319,45 +320,62 @@ int page_map(pde_t* pgdir, void* va, void* pa)
     return 0;
 }
 
-void* get_next_avail(int mode) {
+void* get_next_avail_vp(int numpages) {
 
     //Use virtual address bitmap to find the next free page
 
     int index = -1;
     int i = 0;
     // looking for a vpage if mode == 0
-    if (mode == 0) {
-        pthread_mutex_lock(&vbitmap_lock);
-        for (i = 0; i < page_count; i++) {
-            if (vbitmap[i] == 0) {
+    pthread_mutex_lock(&vbitmap_lock);
+    for (i = 0; i < vpage_count; i++) {
+        if (vbitmap[i] == 0) {
+            int h;
+            bool avail = true;
+            for (h = i; h < i + numpages; h++)
+            {
+                if (vbitmap[h] != 0)
+                {
+                    avail = false;
+                }
+            }
+            if (avail)
+            {
                 index = i;
-                vbitmap[i] = 1;
+                int h;
+                for (h = i; h < i + numpages; h++)
+                {
+                    vbitmap[h] = 1;
+                }
+                
                 break;
             }
         }
-        pthread_mutex_unlock(&vbitmap_lock);
-        if (index > -1)
-            return &index;
-        else
-            return NULL;
     }
-    else {
-        pthread_mutex_lock(&pbitmap_lock);
-        for (i = 0; i < page_count; i++) {
-            if (pbitmap[i] == 0) {
-                index = i;
-                pbitmap[i] = 1;
-                break;
-            }
-        }
-        pthread_mutex_unlock(&pbitmap_lock);
-        if (index > -1)
-            return &index;
-        else
-            return NULL;
-    }
+    pthread_mutex_unlock(&vbitmap_lock);
 
-    return NULL;
+    if (index > -1)
+        return &index;
+    else
+        return NULL;
+}
+
+void* get_next_avail_pp() {
+    int index = -1;
+    int i = 0;
+    pthread_mutex_lock(&pbitmap_lock);
+    for (i = 0; i < page_count; i++) {
+        if (pbitmap[i] == 0) {
+            index = i;
+            pbitmap[i] = 1;
+            break;
+        }
+    }
+    pthread_mutex_unlock(&pbitmap_lock);
+    if (index > -1)
+        return &index;
+    else
+        return NULL;
 }
 
 
@@ -389,13 +407,13 @@ void* a_malloc(unsigned int num_bytes) {
     }
 
     //next[0] = vpage number, next[1] = physical page number
-    int num_pages = (int)ceil(num_bytes / PGSIZE);
+    int num_pages = (int)ceil((double)num_bytes / (double)PGSIZE);
+    //printf("num_pages: %d\n", num_pages);
 
     //printf("a_mallocing...\n");
 
-    //getting the available CONSECUTIVE vpage entries 
-    //int* next_vp = get_next_avail(num_pages);
-    int* next_vp = get_next_avail(0);
+    //getting the available CONSECUTIVE vpage entries
+    int* next_vp = get_next_avail_vp(num_pages);
     if (next_vp == NULL) {
         puts("\tERROR: cannot find next vp");
         return NULL;
@@ -404,13 +422,13 @@ void* a_malloc(unsigned int num_bytes) {
     //printf("\tnext vp: %d\n", *next_vp);
 
     //getting the available physical pages (doesn't have to be consecutive)
-    //int* next_pp = get_avail_phys(page_count);
+    /*
     int* next_pp = get_next_avail(1);
     if (next_pp == NULL) {
         puts("\tERROR: cannot find next pp");
         return NULL;
     }
-    int pp = *next_pp;
+    int pp = *next_pp;*/
     //printf("\tnext pp: %d\n", *next_pp);
     //need to figure out how many entries in a page
     //page_dir[next[0]] = (pde_t*)malloc(PGSIZE);
@@ -418,20 +436,34 @@ void* a_malloc(unsigned int num_bytes) {
     void* vpointer = NULL;
 
     // for loop for multiple page mallocs?
-    //int n;
-    //for (n = num_pages; n > 0; n--)
-    //{
+    unsigned long finalvaddr;
+    int n;
+    for (n = 0; n < num_pages; n++)
+    {
+        int* next_pp = get_next_avail_pp();
+        if (next_pp == NULL) {
+            puts("\tERROR: cannot find next pp");
+            return NULL;
+        }
+        int pp = *next_pp;
+        //printf("\tnext pp: %d\n", *next_pp);
+
         unsigned int off = 0; // assuming new page per a_malloc
         
         // index of inner page = virtual page number % size of page
-        unsigned int vpn1 = vp % PGSIZE;
+        unsigned int vpn1 = (vp+n) % num_entries_per_page;
         //printf("\tvpn1: %d\n", vpn1);
         
         // index of outer page = virtual page number / size of page
-        unsigned int vpn0 = vp / PGSIZE;
+        unsigned int vpn0 = (vp+n) / num_entries_per_page;
         //printf("\tvpn0: %d\n", vpn0);
         
-        unsigned long vaddr = (vpn0 * (1 << 31)) + (vpn1 * (1 << (31 - front_bits))) + off;
+        unsigned long vaddr = (vpn0 * (1 << (mid_bits + off_bits))) + (vpn1 * (1 << (off_bits))) + off;
+
+        if (n == 0)
+        {
+            finalvaddr = vaddr;
+        }
         
         vpointer = vaddr;
         //printf("\tvirtual address: %lx\n", vaddr);
@@ -440,9 +472,10 @@ void* a_malloc(unsigned int num_bytes) {
         void* ppointer = paddr;
         //printf("\tphysical address: %lx\n", paddr);
         page_map(page_dir, vpointer, ppointer);
-    //}
+    }
 
-        //sleep(1);
+    //printf("\tfinal virtual address: %lx\n", finalvaddr);
+    vpointer = finalvaddr;
 
     return vpointer;
 }
@@ -458,45 +491,55 @@ void a_free(void* va, int size) {
      * Part 2: Also, remove the translation from the TLB
      */
 
-    printf("\tfreeing...\n");
-    
-    unsigned int vaddr = (unsigned int)va;
-    int vpn0 = get_top_bits(vaddr, front_bits);
-    int vpn1 = get_mid_bits(vaddr, mid_bits, off_bits);
-    pde_t* pa = translate(page_dir, va);
-    unsigned int paddr = (unsigned int)pa;
+    int num_pages = (int)ceil((double)size / (double)PGSIZE);
+    unsigned long vaddress = (unsigned long)va;
+    unsigned int vpn0 = get_top_bits(vaddress, front_bits);
+    unsigned int vpn1 = get_mid_bits(vaddress, mid_bits, off_bits);
 
-    int vindex = (vpn0 * PGSIZE) + vpn1;
-    int pindex = (paddr - (unsigned int)physical_mem) / PGSIZE;
-
-    vbitmap[vindex] = 0;
-    pbitmap[pindex] = 0;
-
-    // free consecutive pages
     int j;
-    for (j = 0; j <= size; j += PGSIZE)
+    for (j = 0; j < num_pages; j ++)
     {
-        memset(pa + (j*PGSIZE), 0, size);
-    }
-
-    unsigned int entry_value = get_top_bits(vaddr, front_bits + mid_bits);
-    if (check_TLB(va) != NULL)
-    {
-        int i = 0;
-        while (tlb_store.page_dir_nums[i] != entry_value)
+        
+        vpn1 = vpn1 + j;
+        if (vpn1 >= num_entries_per_page)
         {
-            i++;
-            if (i >= TLB_ENTRIES)
-            {
-                break;
-            }
+            vpn1 = 0;
+            vpn0++;
         }
 
-        tlb_store.page_dir_nums[i] = 0;
-        tlb_store.physical_addrs[i] = 0;
-        tlb_store.age[i] = 0;
+        unsigned long vaddr = (vpn0 * (1 << (mid_bits + off_bits))) + (vpn1 * (1 << (off_bits)));
+        //printf("\tvaddr: %lx\n", vaddr);
+        //printf("\tvaddress: %lx\n", vaddress);
 
-        printf("\tremoved from TLB\n");
+        pde_t* pa = translate(page_dir, (void*)vaddr);
+        unsigned int paddr = (unsigned int)pa;
+
+        int vindex = (vpn0 * PGSIZE) + vpn1;
+        int pindex = (paddr - (unsigned int)physical_mem) / PGSIZE;
+
+        vbitmap[vindex] = 0;
+        pbitmap[pindex] = 0;
+        memset(pa, 0, size);
+
+        unsigned int entry_value = get_top_bits(vaddr, front_bits + mid_bits);
+        if (check_TLB(va) != NULL)
+        {
+            int i = 0;
+            while (tlb_store.page_dir_nums[i] != entry_value)
+            {
+                i++;
+                if (i >= TLB_ENTRIES)
+                {
+                    break;
+                }
+            }
+
+            tlb_store.page_dir_nums[i] = 0;
+            tlb_store.physical_addrs[i] = 0;
+            tlb_store.age[i] = 0;
+
+            printf("\tremoved from TLB\n");
+        }
     }
 }
 
@@ -512,12 +555,8 @@ void put_value(void* va, void* val, int size) {
      * function.
      */
 
-     //INSERT TRANSLATE CALL - assuming it just returns the addr for the start of phys page in physical_mem
     pde_t* paddr = translate(page_dir, va);
-
-    //int index = (*paddr) * (PGSIZE - 1);
     memcpy(paddr, val, size);
-    //printf("value put = %d\n", *paddr);
 }
 
 
@@ -527,22 +566,9 @@ void get_value(void* va, void* val, int size) {
     /* HINT: put the values pointed to by "va" inside the physical memory at given
     * "val" address. Assume you can access "val" directly by derefencing them.
     */
-    //logic: simply get the physical addr, and set va to be the dereferenced value???
-    pde_t* paddr = translate(page_dir, va);
     
-    /*
-    int index = (*paddr) * (PGSIZE - 1);
-    int i;
-    unsigned char* temp = (char*)malloc(size);
-    //not sure if this is right but i'm just setting val[i] = phys_mem[i]
-    for (i = index; i < index + PGSIZE; i++) {
-        temp[i] = physical_mem[i];
-    }
-    memcpy(temp, val, temp);
-    */
-
+    pde_t* paddr = translate(page_dir, va);
     memcpy(val, paddr, size);
-    //printf("value got = %d\n", *paddr);
 }
 
 
@@ -561,16 +587,16 @@ void mat_mult(void* mat1, void* mat2, int size, void* answer) {
      * store the result to the "answer array"
      */
     int i, j, k;
-    for (i = 0; i < size; i++){
-        for(j = 0; j < size; j++){
-            int* val = (int *) translate(page_dir, ((int*) answer) + i * size + j);
+    for (i = 0; i < size; i++) {
+        for (j = 0; j < size; j++) {
+            int* val = (int*)translate(page_dir, ((int*)answer) + i * size + j);
             *val = 0;
 
-            for(k = 0; k< size; k++){
-                int* val1 = (int *) translate(page_dir, ((int *) mat1) + i * size + k);
-                int* val2 = (int *) translate(page_dir, ((int *) mat2) + i * size + k);
+            for (k = 0; k < size; k++) {
+                int* val1 = (int*)translate(page_dir, ((int*)mat1) + i * size + k);
+                int* val2 = (int*)translate(page_dir, ((int*)mat2) + i * size + k);
 
-                *val+= val1+val2;
+                *val += (int)val1 + (int)val2;
             }
         }
 
@@ -584,7 +610,7 @@ main()
 {
     printf("\n\n\n-------- TEST A --------\n");
     void* a = a_malloc(sizeof(int));
-    //printf("allocated %d bytes to void* a\n", sizeof(int));
+    printf("allocated %d bytes to void* a\n", sizeof(int));
 
     int i = 3;
     printf("\nput_value %d into void* a\n", i);
@@ -663,16 +689,19 @@ main()
 
     sleep(1);
     printf("\n\n\n-------- TEST D --------\n");
-    void* d = a_malloc(sizeof(int));
+    int q[2000];
+    void* d = a_malloc(sizeof(q));
     //printf("allocated %d bytes to void* d\n", sizeof(int));
 
-    int q = 100;
     printf("\nput_value %d into void* d\n", q);
-    put_value(d, &q, sizeof(int));
+    put_value(d, &q, sizeof(q));
     //printf("put_value success\n");
 
     int qq;
     printf("\nget_value from void* d\n");
     get_value(d, &qq, sizeof(int));
     printf("get_value success. d = %d\n", qq);
+
+    printf("free d\n");
+    a_free(d, sizeof(q));
 }//*/
