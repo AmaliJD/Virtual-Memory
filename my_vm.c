@@ -9,7 +9,6 @@ void set_physical_mem() {
     //Allocate physical memory using mmap or malloc; this is the total size of
     //your memory you are simulating
 
-    //int num_pages = MEMSIZE / PGSIZE;
     int num_entries_per_page = PGSIZE / sizeof(pte_t);
     double ob = log10(PGSIZE) / log10(2);
     off_bits = (int)ceil(ob);
@@ -20,14 +19,14 @@ void set_physical_mem() {
     ptable_count = (ppage_count * sizeof(pte_t)) / PGSIZE;
     vpage_count = ppage_count; //idk this one yet
 
-    //not sure what type to set physical mem to so i have it is
     physical_mem = (unsigned char*)malloc(MEMSIZE);
     page_dir = (pde_t*)malloc(ptable_count * sizeof(pde_t));
     vbitmap = (valid_bit*)malloc(vpage_count);
     pbitmap = (valid_bit*)malloc(page_count);
     //HINT: Also calculate the number of physical and virtual pages and allocate
     //virtual and physical bitmaps and initialize them
-
+    
+    //*  TESTING PRINTS
     printf("Off: %d\nMid: %d\nTop: %d\n\n", off_bits, mid_bits, front_bits);
     //sleep(1);
 
@@ -36,6 +35,7 @@ void set_physical_mem() {
 
     printf("physical_mem: %lx\npage_dir: %lx\n\n", physical_mem, page_dir);
     //sleep(1);
+    //*/
 
     tlb_store.miss_count = 0;
 }
@@ -48,8 +48,6 @@ void set_physical_mem() {
 int
 add_TLB(void* va, pte_t* pa)
 {
-
-    /*Part 2 HINT: Add a virtual to physical page translation to the TLB */
     pthread_mutex_lock(&tlb_lock);
     tlb_store.miss_count += 1;
 
@@ -84,7 +82,7 @@ add_TLB(void* va, pte_t* pa)
         if (tlb_store.physical_addrs[j] != 0)
         {
             tlb_store.age[j] += 1;
-            printf("\tage[%d]: %d\n", j, tlb_store.age[j]);
+            //printf("\tage[%d]: %d\n", j, tlb_store.age[j]);
         }
     }
     
@@ -151,14 +149,6 @@ pte_t* translate(pde_t* pgdir, void* va) {
     * translation exists, then you can return physical address from the TLB.
     */
 
-    // Translation
-    /*
-        Go to pgdir. Offset by vpn to get pagetable address
-        Go to pagetable address. Offset by ppn to get page address
-        Go to page address. Offset by off to get data address
-        Go to data address -> retrieve value
-    */
-
     // check TLB first
     pte_t* paddr = check_TLB(va);
 
@@ -169,14 +159,14 @@ pte_t* translate(pde_t* pgdir, void* va) {
         unsigned int vpn1 = get_mid_bits(vaddr, mid_bits, off_bits);
         unsigned int off = get_end_bits(vaddr, off_bits);
 
-        printf("\tTLB miss: translating address...\n");
-        printf("\tpage directory: %lx\n", pgdir);
+        //printf("\tTLB miss: translating address...\n");
+        //printf("\tpage directory: %lx\n", pgdir);
         pte_t* outer = pgdir[vpn0];
-        printf("\tpage table addr: %lx\n", outer);
+        //printf("\tpage table addr: %lx\n", outer);
         pte_t* inner = outer[vpn1];
-        printf("\tphysical page addr: %lx\n", inner);
+        //printf("\tphysical page addr: %lx\n", inner);
         paddr = &inner[off];
-        printf("\tphysical address: %lx\n", paddr);
+        //printf("\tphysical address: %lx\n", paddr);
         //sleep(1);
 
         add_TLB(va, paddr);
@@ -184,14 +174,11 @@ pte_t* translate(pde_t* pgdir, void* va) {
     else
     {
         printf("\tTLB hit\n");
-        printf("\tphysical address: %lx\n", paddr);
+        //printf("\tphysical address: %lx\n", paddr);
         //sleep(1);
     }
 
     return paddr;
-
-    //If translation not successfull
-    //return NULL;
 }
 
 
@@ -301,47 +288,7 @@ as an argument, and sets a page table entry. This function will walk the page
 directory to see if there is an existing mapping for a virtual address. If the
 virtual address is not present, then a new entry will be added
 */
-/*
-int
-page_map(pde_t* pgdir, void* va, void* pa)
-{
-
-    /*HINT: Similar to translate(), find the page directory (1st level)
-    and page table (2nd-level) indices. If no mapping exists, set the
-    virtual to physical mapping
-    
-    pte_t addr = (pte_t)va;
-    int offset_bits = (int)ceil(log2(PGSIZE));
-    //int second_bits = min((32 - offset_bits) / 2, offset_bits);
-    int a = (32 - offset_bits) / 2;
-    int b = offset_bits;
-    int second_bits = (a > b) ? a : b;
-    if (off_bits == second_bits) {
-        second_bits -= (int)log2(sizeof(pde_t));
-    }
-    long mask = (1 << second_bits) - 1;
-
-    //insert lock call to make threadsafe
-    pthread_mutex_lock(&pt_lock);
-    if (!pgdir[offset_bits]) {
-        pte_t* page = malloc(PGSIZE / sizeof(pte_t));
-        pgdir[offset_bits] = (pte_t * )page;
-    }
-
-
-    ((pte_t*)pgdir[offset_bits])[second_bits] = (pte_t)pa;
-    pthread_mutex_unlock(&pt_lock);
-    //unlock call
-
-    //need to check TLB and update insert checkTLB call
-
-    
-
-    return 0;
-}*/
-
-int
-page_map(pde_t* pgdir, void* va, void* pa)
+int page_map(pde_t* pgdir, void* va, void* pa)
 {
 
     /*HINT: Similar to translate(), find the page directory (1st level)
@@ -366,114 +313,52 @@ page_map(pde_t* pgdir, void* va, void* pa)
     pthread_mutex_unlock(&pt_lock);
     //unlock call
 
-    printf("\tpage_map outer: %lx\n", pgdir[offset_bits]);
-    printf("\tpage_map inner: %lx\n", ((pte_t*)pgdir[offset_bits])[second_bits]);
+    //printf("\tpage_map outer: %lx\n", pgdir[offset_bits]);
+    //printf("\tpage_map inner: %lx\n", ((pte_t*)pgdir[offset_bits])[second_bits]);
 
     return 0;
 }
 
-/*Function that gets the next available page and returns respective index*/
-void* get_next_avail(int num_pages) {
+void* get_next_avail(int mode) {
 
     //Use virtual address bitmap to find the next free page
-    /*
-    logic: simply iterate thru the pagedir bitmap and find the first 0 and return starting address for that page???
-    */
+
     int index = -1;
     int i = 0;
-    pthread_mutex_lock(&vbitmap_lock);
-    for (i = 0; i < vpage_count; i++) {
-        if (vbitmap[i] == 0) {
-            index = i;
-            vbitmap[i] = 1;
-            break;
+    // looking for a vpage if mode == 0
+    if (mode == 0) {
+        pthread_mutex_lock(&vbitmap_lock);
+        for (i = 0; i < page_count; i++) {
+            if (vbitmap[i] == 0) {
+                index = i;
+                vbitmap[i] = 1;
+                break;
+            }
         }
-    }
-    pthread_mutex_unlock(&vbitmap_lock);
-    //should we throw in a lock here??? why not
-    
-    if (index > -1)
-        return &index;
-    else
-        return NULL;
-
-}
-
-void* get_avail_phys(int count) {
-    int index = -1;
-    int i = 0;
-    pthread_mutex_lock(&pbitmap_lock);
-    for (i = 0; i < page_count; i++) {
-        if (pbitmap[i] == 0) {
-            index = i;
-            pbitmap[i] = 1;
-            break;
-        }
-    }
-    pthread_mutex_unlock(&pbitmap_lock);
-    //should we throw in a lock here??? why not
-
-    if (index > -1)
-        return &index;
-    else
-        return NULL;
-}
-/*
-
-void* get_next_avail(int num_pages) {
-
-    //Use virtual address bitmap to find the next free page
-    /*
-    logic: simply iterate thru the pagedir bitmap and find the first 0 and return starting address for that page???
-    
-    int index = -1;
-    int i = 0;
-    int temp = num_pages;
-    int* arr = malloc(page_count * sizeof(int));
-    int zero = 1;
-    pthread_mutex_lock(&vbitmap_lock);
-    for (i = 0; i < vpage_count; i++) {
-        if (vbitmap[i] == 0) {
-            index = i;
-            vbitmap[i] = 1;
-            break;
-        }
-    }
-    pthread_mutex_unlock(&vbitmap_lock);
-    //should we throw in a lock here??? why not
-
-    if (index > -1)
-    return &index;
-    else
-    return NULL;
-
-}
-
-void* get_avail_phys(int count) {
-    int* arr = malloc(page_count * sizeof(int));
-    int temp = count;
-    int i;
-    int index = 0;
-    pthread_mutex_lock(&pbitmap_lock);
-    for (i = 0; i < page_count; i++) {
-        if (pbitmap[i] == 0) {
-            arr[index] = i;
-            pbitmap[i] = 1;
-            index++;
-            temp--;
-        }
-        if (temp == 0) {
-            break;
-        }
-    }
-    pthread_mutex_unlock(&pbitmap_lock);
-    if (temp == 0) {
-        return arr;
+        pthread_mutex_unlock(&vbitmap_lock);
+        if (index > -1)
+            return &index;
+        else
+            return NULL;
     }
     else {
-        return NULL;
+        pthread_mutex_lock(&pbitmap_lock);
+        for (i = 0; i < page_count; i++) {
+            if (pbitmap[i] == 0) {
+                index = i;
+                pbitmap[i] = 1;
+                break;
+            }
+        }
+        pthread_mutex_unlock(&pbitmap_lock);
+        if (index > -1)
+            return &index;
+        else
+            return NULL;
     }
-}*/
+
+    return NULL;
+}
 
 
 /* Function responsible for allocating pages
@@ -506,43 +391,33 @@ void* a_malloc(unsigned int num_bytes) {
     //next[0] = vpage number, next[1] = physical page number
     int num_pages = (int)ceil(num_bytes / PGSIZE);
 
-    printf("a_mallocing...\n");
+    //printf("a_mallocing...\n");
 
     //getting the available CONSECUTIVE vpage entries 
-    int* next_vp = get_next_avail(num_pages);
+    //int* next_vp = get_next_avail(num_pages);
+    int* next_vp = get_next_avail(0);
     if (next_vp == NULL) {
         puts("\tERROR: cannot find next vp");
         return NULL;
     }
     int vp = *next_vp;
-    printf("\tnext vp: %d\n", *next_vp);
+    //printf("\tnext vp: %d\n", *next_vp);
 
     //getting the available physical pages (doesn't have to be consecutive)
-    int* next_pp = get_avail_phys(page_count);
+    //int* next_pp = get_avail_phys(page_count);
+    int* next_pp = get_next_avail(1);
     if (next_pp == NULL) {
         puts("\tERROR: cannot find next pp");
         return NULL;
     }
     int pp = *next_pp;
-    printf("\tnext pp: %d\n", *next_pp);
+    //printf("\tnext pp: %d\n", *next_pp);
     //need to figure out how many entries in a page
     //page_dir[next[0]] = (pde_t*)malloc(PGSIZE);
-
-    
-    //having issues working out how to handle vaddrs for malloc calls that require multiple pages
-    /*
-    unsigned int vpn0 = next_vp[0]; // index of outerpage
-    unsigned int vpn1 = next_vp[1]; // index of innerpage
-    unsigned int off = 0; // assuming new page per a_malloc
-    unsigned int vaddr = (vpn0 * (1 << 32)) + (vpn1 * (1 << (32 - front_bits))) + off;
-
-    void* vpointer = vaddr;
-
-    page_map(page_dir, vpointer, next_pp);
-    */
     
     void* vpointer = NULL;
 
+    // for loop for multiple page mallocs?
     //int n;
     //for (n = num_pages; n > 0; n--)
     //{
@@ -550,20 +425,20 @@ void* a_malloc(unsigned int num_bytes) {
         
         // index of inner page = virtual page number % size of page
         unsigned int vpn1 = vp % PGSIZE;
-        printf("\tvpn1: %d\n", vpn1);
+        //printf("\tvpn1: %d\n", vpn1);
         
         // index of outer page = virtual page number / size of page
         unsigned int vpn0 = vp / PGSIZE;
-        printf("\tvpn0: %d\n", vpn0);
+        //printf("\tvpn0: %d\n", vpn0);
         
         unsigned long vaddr = (vpn0 * (1 << 31)) + (vpn1 * (1 << (31 - front_bits))) + off;
         
         vpointer = vaddr;
-        printf("\tvirtual address: %lx\n", vaddr);
+        //printf("\tvirtual address: %lx\n", vaddr);
 
         unsigned long paddr = &physical_mem[(pp * PGSIZE)];
         void* ppointer = paddr;
-        printf("\tphysical address: %lx\n", paddr);
+        //printf("\tphysical address: %lx\n", paddr);
         page_map(page_dir, vpointer, ppointer);
     //}
 
@@ -583,11 +458,6 @@ void a_free(void* va, int size) {
      * Part 2: Also, remove the translation from the TLB
      */
 
-     /*logic:
-         1. get the translation for the physical page free that
-         2. get the page dir index and then free that
-         3. check if value is in TLB by using page dir index and free if necessary
-     */
     printf("\tfreeing...\n");
     
     unsigned int vaddr = (unsigned int)va;
@@ -647,7 +517,7 @@ void put_value(void* va, void* val, int size) {
 
     //int index = (*paddr) * (PGSIZE - 1);
     memcpy(paddr, val, size);
-    printf("value put = %d\n", *paddr);
+    //printf("value put = %d\n", *paddr);
 }
 
 
@@ -672,7 +542,7 @@ void get_value(void* va, void* val, int size) {
     */
 
     memcpy(val, paddr, size);
-    printf("value got = %d\n", *paddr);
+    //printf("value got = %d\n", *paddr);
 }
 
 
@@ -700,12 +570,12 @@ main()
 {
     printf("\n\n\n-------- TEST A --------\n");
     void* a = a_malloc(sizeof(int));
-    printf("allocated %d bytes to void* a\n", sizeof(int));
+    //printf("allocated %d bytes to void* a\n", sizeof(int));
 
     int i = 3;
     printf("\nput_value %d into void* a\n", i);
     put_value(a, &i, sizeof(int));
-    printf("put_value success\n");
+    //printf("put_value success\n");
 
     int ii;
     printf("\nget_value from void* a\n");
@@ -715,12 +585,12 @@ main()
     sleep(1);
     printf("\n\n\n-------- TEST B --------\n");
     void* b = a_malloc(sizeof(int));
-    printf("allocated %d bytes to void* b\n", sizeof(int));
+    //printf("allocated %d bytes to void* b\n", sizeof(int));
 
     int j = 16;
     printf("\nput_value %d into void* b\n", j);
     put_value(b, &j, sizeof(int));
-    printf("put_value success\n");
+    //printf("put_value success\n");
 
     int jj;
     printf("\nget_value from void* b\n");
@@ -730,12 +600,12 @@ main()
     sleep(1);
     printf("\n\n\n-------- TEST C --------\n");
     void* c = a_malloc(sizeof(int));
-    printf("allocated %d bytes to void* c\n", sizeof(int));
+    //printf("allocated %d bytes to void* c\n", sizeof(int));
 
     int k = 45;
     printf("\nput_value %d into void* c\n", k);
     put_value(c, &k, sizeof(int));
-    printf("put_value success\n");
+    //printf("put_value success\n");
 
     int kk;
     printf("\nget_value from void* c\n");
@@ -749,7 +619,7 @@ main()
     get_value(a, &A, sizeof(int));
     get_value(b, &B, sizeof(int));
     get_value(c, &C, sizeof(int));
-    printf("get_value complete\n");
+    //printf("get_value complete\n");
     printf("Expected Results:\ta = %d\tb = %d\tc = %d\n", i, j, k);
     printf("Actual Results:  \ta = %d\tb = %d\tc = %d\n", A, B, C);
 
@@ -771,7 +641,7 @@ main()
     printf("free c\n");
     a_free(c, sizeof(int));
 
-    printf("getting all values of a, b, c\n");
+    printf("\ngetting all values of a, b, c\n");
     get_value(a, &A, sizeof(int));
     get_value(b, &B, sizeof(int));
     get_value(c, &C, sizeof(int));
@@ -780,12 +650,12 @@ main()
     sleep(1);
     printf("\n\n\n-------- TEST D --------\n");
     void* d = a_malloc(sizeof(int));
-    printf("allocated %d bytes to void* d\n", sizeof(int));
+    //printf("allocated %d bytes to void* d\n", sizeof(int));
 
     int q = 100;
     printf("\nput_value %d into void* d\n", q);
     put_value(d, &q, sizeof(int));
-    printf("put_value success\n");
+    //printf("put_value success\n");
 
     int qq;
     printf("\nget_value from void* d\n");
