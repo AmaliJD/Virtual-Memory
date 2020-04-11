@@ -15,9 +15,9 @@ void set_physical_mem() {
     mid_bits = (32 - off_bits) / 2;
     front_bits = 32 - mid_bits - off_bits;
 
-    ppage_count = 1 << mid_bits;
+    int ppage_count = 1 << mid_bits;
     ptable_count = (ppage_count * sizeof(pte_t)) / PGSIZE;
-    vpage_count = ppage_count; //idk this one yet
+    int vpage_count = MAX_MEMSIZE/PGSIZE; //idk this one yet
 
     physical_mem = (unsigned char*)malloc(MEMSIZE);
     page_dir = (pde_t*)malloc(ptable_count * sizeof(pde_t));
