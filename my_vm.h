@@ -43,8 +43,8 @@ struct tlb {
     */
 	int mem_accesses;
     int miss_count;
-    int page_dir_nums[TLB_ENTRIES];
-    int physical_addrs[TLB_ENTRIES];
+    short int page_dir_nums[TLB_ENTRIES];
+    short int physical_addrs[TLB_ENTRIES];
     short int age[TLB_ENTRIES];
 
 };
@@ -75,7 +75,7 @@ unsigned int get_mid_bits(unsigned int value, int num_middle_bits, int num_lower
 int get_ppn(void*);
 pte_t* translate(pde_t *pgdir, void *va);
 int page_map(pde_t *pgdir, void *va, void* pa);
-bool check_in_tlb(void *va);
+pte_t* check_TLB(void *va, int mode);
 void put_in_tlb(void *va, void *pa);
 void *a_malloc(unsigned int num_bytes);
 void a_free(void *va, int size);
