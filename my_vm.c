@@ -27,13 +27,13 @@ void set_physical_mem() {
     //virtual and physical bitmaps and initialize them
     
     //*  TESTING PRINTS
-    printf("Off: %d\nMid: %d\nTop: %d\n\n", off_bits, mid_bits, front_bits);
+    //printf("Off: %d\nMid: %d\nTop: %d\n\n", off_bits, mid_bits, front_bits);
     //sleep(1);
 
-    printf("ppage_count: %d\nptable_count: %d\n\n", ppage_count, ptable_count);
+    //printf("ppage_count: %d\nptable_count: %d\n\n", ppage_count, ptable_count);
     //sleep(1);
 
-    printf("physical_mem: %lx\npage_dir: %lx\n\n", physical_mem, page_dir);
+    //printf("physical_mem: %lx\npage_dir: %lx\n\n", physical_mem, page_dir);
     //sleep(1);
     //*/
 
@@ -65,7 +65,7 @@ add_TLB(void* va, pte_t* pa)
 
     if (i >= TLB_ENTRIES)
     {
-        printf("\tNot enough space in TLB. Evicting oldest entry\n");
+        //printf("\tNot enough space in TLB. Evicting oldest entry\n");
         i = oldest;
     }
 
@@ -159,7 +159,7 @@ pte_t* translate(pde_t* pgdir, void* va) {
         unsigned int vpn1 = get_mid_bits(vaddr, mid_bits, off_bits);
         unsigned int off = get_end_bits(vaddr, off_bits);
 
-        printf("\tTLB miss: translating address...\n");
+        //printf("\tTLB miss: translating address...\n");
         //printf("\tvirtual address: %lx\n", vaddr);
         //printf("\tpage directory: %lx\n", pgdir);
         pte_t* outer = pgdir[vpn0];
@@ -174,7 +174,7 @@ pte_t* translate(pde_t* pgdir, void* va) {
     }
     else
     {
-        printf("\tTLB hit\n");
+        //printf("\tTLB hit\n");
         //printf("\tphysical address: %lx\n", paddr);
         //sleep(1);
     }
@@ -538,7 +538,7 @@ void a_free(void* va, int size) {
             tlb_store.physical_addrs[i] = 0;
             tlb_store.age[i] = 0;
 
-            printf("\tremoved from TLB\n");
+            //printf("\tremoved from TLB\n");
         }
     }
 }
@@ -596,7 +596,7 @@ void mat_mult(void* mat1, void* mat2, int size, void* answer) {
                 int* val1 = (int*)translate(page_dir, ((int*)mat1) + i * size + k);
                 int* val2 = (int*)translate(page_dir, ((int*)mat2) + i * size + k);
 
-                *val += (int)val1 + (int)val2;
+                *val += *val1 + *val2;
             }
         }
 
