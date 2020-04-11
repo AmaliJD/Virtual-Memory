@@ -560,7 +560,21 @@ void mat_mult(void* mat1, void* mat2, int size, void* answer) {
      * getting the values from two matrices, you will perform multiplication and
      * store the result to the "answer array"
      */
+    int i, j, k;
+    for (i = 0; i < size; i++){
+        for(j = 0; j < size; j++){
+            int* val = (int *) translate(page_dir, ((int*) answer) + i * size + j);
+            *val = 0;
 
+            for(k = 0; k< size; k++){
+                int* val1 = (int *) translate(page_dir, ((int *) mat1) + i * size + k);
+                int* val2 = (int *) translate(page_dir, ((int *) mat2) + i * size + k);
+
+                *val+= val1+val2;
+            }
+        }
+
+    }
 
 }
 
