@@ -74,16 +74,6 @@ int add_TLB(void* va, pte_t* pa)
     tlb_store.page_dir_nums[i] = entry_value;
     tlb_store.physical_addrs[i] = pa_value;
     tlb_store.age[i] = 0;
-
-    int j;
-    for (j = 0; j < TLB_ENTRIES; j++)
-    {
-        if (tlb_store.physical_addrs[j] != 0)
-        {
-            tlb_store.age[j] += 1;
-            //printf("\tage[%d]: %d\n", j, tlb_store.age[j]);
-        }
-    }
     
     pthread_mutex_unlock(&tlb_lock);
 
@@ -105,6 +95,16 @@ pte_t* check_TLB(void* va) {
 
     int i = 0;
 
+    int j;
+    for (j = 0; j < TLB_ENTRIES; j++)
+    {
+        if (tlb_store.physical_addrs[j] != 0)
+        {
+            tlb_store.age[j] += 1;
+        }
+    }
+
+
     while (tlb_store.page_dir_nums[i] != entry_value)
     {
         i++;
@@ -114,6 +114,7 @@ pte_t* check_TLB(void* va) {
         }
     }
 
+    tlb_store.age[i] = 0;
     pte_t* pa_value = tlb_store.physical_addrs[i];
     pthread_mutex_unlock(&tlb_lock);
 
