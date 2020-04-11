@@ -57,7 +57,8 @@ unsigned char* physical_mem;
 pthread_mutex_t pt_lock,
 vbitmap_lock,
 pbitmap_lock,
-tlb_lock;
+tlb_lock,
+phys_mem_lock;
 
 int vpage_count;
 int ppage_count;

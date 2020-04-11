@@ -131,7 +131,9 @@ print_TLB_missrate()
 {
     double miss_rate = 0;
     /*Part 2 Code here to calculate and print the TLB miss rate*/
+    pthread_mutex_lock(&tlb_lock);
     miss_rate = tlb_store.miss_count / tlb_store.mem_accesses;
+    pthread_mutex_unlock(&tlb_lock);
 
     fprintf(stderr, "TLB miss rate %lf \n", miss_rate);
 }
@@ -556,7 +558,9 @@ void put_value(void* va, void* val, int size) {
      */
 
     pde_t* paddr = translate(page_dir, va);
+    pthread_mutex_lock(&phys_mem_lock);
     memcpy(paddr, val, size);
+    pthread_mutex_unlock(&phys_mem_lock);
 }
 
 
@@ -568,7 +572,9 @@ void get_value(void* va, void* val, int size) {
     */
     
     pde_t* paddr = translate(page_dir, va);
+    pthread_mutex_lock(&phys_mem_lock);
     memcpy(val, paddr, size);
+    pthread_mutex_unlock(&phys_mem_lock);
 }
 
 
