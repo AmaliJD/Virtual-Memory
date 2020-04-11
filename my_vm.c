@@ -595,8 +595,8 @@ void mat_mult(void* mat1, void* mat2, int size, void* answer) {
             for (k = 0; k < size; k++) {
                 int* val1 = (int*)translate(page_dir, ((int*)mat1) + i * size + k);
                 int* val2 = (int*)translate(page_dir, ((int*)mat2) + i * size + k);
-
-                *val += *val1 + *val2;
+				//printf("\tanswer[%d][%d]: val1: %d, val2: %d, sum: %d, val: %d\n",i, k, *val1, *val2, *val1+*val2, *val);
+                *val += *val1 * *val2;
             }
         }
 
