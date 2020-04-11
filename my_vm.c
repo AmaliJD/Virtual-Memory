@@ -66,8 +66,9 @@ add_TLB(void* va, pte_t* pa)
  * Returns the physical page address.
  * Feel free to extend this function and change the return type.
  */
+// if mode is 1 it's removing the entry if found
 pte_t*
-check_TLB(void* va) {
+check_TLB(void* va, int mode) {
 
     /* Part 2: TLB lookup code here */
     pthread_mutex_lock(&tlb_lock);
@@ -83,8 +84,15 @@ check_TLB(void* va) {
             return NULL;
         }
     }
-
-    pte_t* pa_value = tlb_store.physical_addrs[i];
+    if (mode == 1){
+        tlb_store.page_dir_nums[i] = -1;
+        tlb_store.physical_addrs[i] = -1;
+        tlb_store.age[i] = 0;
+        pte_t* pa_value = NULL;
+    }
+    else{
+        pte_t* pa_value = tlb_store.physical_addrs[i];
+    }
     pthread_mutex_unlock(&tlb_lock);
 
     return pa_value;
@@ -127,7 +135,7 @@ pte_t* translate(pde_t* pgdir, void* va) {
     */
 
     // check TLB first
-    pte_t* paddr = check_TLB(va);
+    pte_t* paddr = check_TLB(va, 0);
 
     if (paddr == NULL)
     {
@@ -295,7 +303,8 @@ page_map(pde_t* pgdir, void* va, void* pa)
 
 
 /*Function that gets the next available page and returns respective index*/
-void* get_next_avail(int num_pages) {
+//returns -1 if there's no vpage available, and -2 if there's no p page available
+void* get_next_avail(int count) {
 
     //Use virtual address bitmap to find the next free page
     /*
@@ -303,31 +312,22 @@ void* get_next_avail(int num_pages) {
     */
     int index = -1;
     int i = 0;
-    int temp = num_pages;
-    int* arr = malloc(page_count * sizeof(int));
-    int zero = 1;
+    int* arr = malloc((1+count) * sizeof(int));
+    int temp = count;
+    // looking for a vpage if mode == 0
     pthread_mutex_lock(&vbitmap_lock);
     for (i = 0; i < page_count; i++) {
         if (vbitmap[i] == 0){
+            arr[0] = i;
             index = i;
             break;
-
         }
     }    
     pthread_mutex_unlock(&vbitmap_lock);
-    //should we throw in a lock here??? why not
-   if (index > -1)
-        return (void * ) index;
-    else
-        return NULL;
-    
-}
+    if (index == -1)
+        return (void*) -1;
 
-int* get_avail_phys(int count){
-    int* arr = malloc(page_count * sizeof(int));
-    int temp = count;
-    int i;
-    int index = 0;
+    index = 1;
     pthread_mutex_lock(&pbitmap_lock);
     for (i = 0; i < page_count; i++) {
         if (pbitmap[i] == 0){
@@ -340,12 +340,10 @@ int* get_avail_phys(int count){
         }
     }    
     pthread_mutex_unlock(&pbitmap_lock);
-        if (temp == 0){
-            return arr;
-        }
-        else{
-            return NULL;
-        }
+    if (temp == 0)
+        return (void *) arr;
+
+    return (void*) -2;
 }
 
 
@@ -379,17 +377,18 @@ void* a_malloc(unsigned int num_bytes) {
     //next[0] = vpage number, next[1] = physical page number
     int num_pages = (int) ceil(num_bytes/PGSIZE);
     
-    //getting the available CONSECUTIVE vpage entries 
-    int next_vp = get_next_avail(num_pages);
-    if (next_vp == NULL) {
+    //getting the available CONSECUTIVE vpage entries
+    //index 0 has v page and everything after are p pages
+    int* avail = (int*) get_next_avail(num_pages); 
+    if (avail == -1 || avail == -2) {
         return NULL;
     }
+
+    int next_vp = avail[0];
     
     //getting the available physical pages (doesn't have to be consecutive)
-    int* next_pp = get_avail_phys(page_count);
-    if (next_pp == NULL){
-        return NULL;
-    }
+    int* next_pp = &avail[1];
+
     //need to figure out how many entries in a page
     //page_dir[next[0]] = (pde_t*)malloc(PGSIZE);
 
@@ -420,6 +419,19 @@ void a_free(void* va, int size) {
          2. get the page dir index and then free that
          3. check if value is in TLB by using page dir index and free if necessary
      */
+
+    //one issue is figuring out how to determine if multiple pages are allocated for va
+
+    //currently j assuming that it's one page max rn
+    //what if they free 100 bytes but the page has other mem in it?? 
+    pde_t* paddr = translate(page_dir, va);
+    if (size >= va)
+        memset(paddr, 0, size);
+
+    unsigned int vpn = get_top_bits(vaddr, front_bits);
+    page_dir[vpn] = 0;
+    
+    check_TLB(va, 1);
 
 
 }
